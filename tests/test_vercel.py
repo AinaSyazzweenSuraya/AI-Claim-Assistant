@@ -31,3 +31,13 @@ def test_remote_postgres_enforces_tls_verification(tmp_path, monkeypatch):
     options = open_connection.call_args.kwargs
     assert options["sslmode"] == "verify-full" and options["sslrootcert"]
     connection.close()
+
+
+def test_vercel_adapter_sets_https_public_origin(settings, monkeypatch):
+    settings.app_mode, settings.api_token = "private", "test-only-token"
+    settings.database_url = SecretStr("postgresql://example.invalid/claims")
+    monkeypatch.setattr("claims_assistant.interfaces.vercel.Settings", lambda **_: settings)
+    factory = Mock()
+    monkeypatch.setattr("claims_assistant.interfaces.vercel.create_app", factory)
+    assert create_vercel_app() is factory.return_value
+    factory.assert_called_once_with(settings, public_https=True)

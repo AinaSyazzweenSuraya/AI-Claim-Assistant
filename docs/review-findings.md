@@ -49,6 +49,28 @@ Git-ignored. `CLAIMS_BROWSER_EXECUTABLE` optionally selects an existing Chromium
 Live Ollama/vision quality and the user's actual Vercel deployment/hosted database remain
 unverified. See [limitations](limitations.md) and [deployment checks](vercel-deployment.md).
 
+## Follow-up: deployed chat and authentication feedback
+
+The user's deployment logs showed HTTP 401 for both health and chat requests. These requests
+were not authenticated with an accepted assistant token. Previously the page still allowed
+claim actions and added user bubbles before receiving a response, while placing errors only
+above the form. It now requires a successful connection, shows errors beside the chat, marks
+unanswered requests, preserves input on failures/reconnection, and trims pasted token text.
+The static welcome bubble also collapses HTML indentation instead of displaying it.
+
+A separate proxy scenario was reproduced: health returned 200 but a same-site HTTPS form
+request returned 403 when the ASGI scope used HTTP. Vercel now sets an explicit HTTPS public
+origin for origin checks without trusting arbitrary forwarded headers. This was not the
+cause of the user's recorded 401 errors.
+
+Follow-up verification: 82 tests passed including disposable PostgreSQL integration;
+17 workflow evaluations passed. Browser checks additionally covered rejected origin requests,
+HTTP 503 HTML replies, incomplete JSON replies, network failures, absent/wrong access tokens,
+token whitespace, connection gating, preserved edits, and successful reconnection.
+The live deployment could not be checked directly from this environment; its public request
+was blocked by the network proxy. Authentication and the new deployment still require
+verification by the user with the private token kept outside chat.
+
 ## Apply the update in PyCharm on Windows
 
 Stop the running app with **Ctrl+C**. From the `AI-Claim-Assistant` project directory:

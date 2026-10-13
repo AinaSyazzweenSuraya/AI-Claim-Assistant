@@ -28,4 +28,4 @@ def create_vercel_app(root: Path | None = None):
     settings.allowed_hosts = list(set(hosts))
     settings.prepare()
     ingest(settings)  # Rebuild per cold start; user data lives in PostgreSQL.
-    return create_app(settings)
+    return create_app(settings, public_https=True)

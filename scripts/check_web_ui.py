@@ -63,6 +63,10 @@ with tempfile.TemporaryDirectory(prefix="claims-ui-check-") as directory:
             page.on("pageerror", lambda error: errors.append(str(error)))
             page.goto(url, wait_until="networkidle")
             assert page.evaluate("document.characterSet") == "UTF-8"
+            assert (
+                page.locator(".welcome").evaluate("element => getComputedStyle(element).whiteSpace")
+                == "normal"
+            )
             assert "We’ll check the policy" in page.locator(".intro").inner_text()
             assert "Development policy · Fictional rates" in page.locator(".notice").inner_text()
             assert page.locator("#step1").inner_text() == "01 · Add details"
@@ -82,6 +86,67 @@ with tempfile.TemporaryDirectory(prefix="claims-ui-check-") as directory:
             page.fill("#route", "KL to PJ")
             page.fill("#purpose", "Client meeting at Café Example")
             page.check("#business")
+            # A rejected or interrupted request must show its error beside the chat,
+            # preserve the edited fields, and never look like a completed turn.
+            failures = [
+                (
+                    403,
+                    "application/json",
+                    '{"detail":"Cross-origin requests are disabled"}',
+                    "Cross-origin requests are disabled",
+                ),
+                (503, "text/html", "<html>Service unavailable</html>", "503"),
+                (200, "application/json", "{}", "incomplete reply"),
+            ]
+            for status, content_type, body, expected_error in failures:
+                page.route(
+                    "**/api/chat",
+                    lambda route, request, status=status, content_type=content_type, body=body: (
+                        route.fulfill(status=status, content_type=content_type, body=body)
+                    ),
+                )
+                page.locator("#claimForm button[type=submit]").click()
+                page.wait_for_function(
+                    "document.querySelector('body').getAttribute('aria-busy') === 'false'"
+                )
+                assert expected_error in page.locator("#chatError").inner_text()
+                assert "Reply unavailable" in page.locator(".bubble.failed").last.inner_text()
+                assert page.locator("#employee").input_value() == "UI001"
+                assert page.locator("#distance").input_value() == "25"
+                assert page.locator("#claimAmount").inner_text() == "Not calculated yet"
+                assert page.locator("#save").is_disabled()
+                page.unroute("**/api/chat")
+            page.route("**/api/chat", lambda route: route.abort())
+            page.locator("#claimForm button[type=submit]").click()
+            page.wait_for_function(
+                "document.querySelector('#chatError').textContent.includes('Unable to reach')"
+            )
+            page.fill("#message", "I drove 25 km today")
+            page.locator("#chatForm button").click()
+            page.wait_for_function(
+                "document.querySelector('#message').value === 'I drove 25 km today'"
+            )
+            page.unroute("**/api/chat")
+            page.route(
+                "**/api/chat",
+                lambda route: route.fulfill(
+                    status=401,
+                    content_type="application/json",
+                    body='{"detail":"A valid service token is required"}',
+                ),
+            )
+            page.locator("#claimForm button[type=submit]").click()
+            page.wait_for_function(
+                "document.querySelector('#chatError').textContent.includes('access token')"
+            )
+            page.wait_for_function("document.querySelector('#employee').disabled === true")
+            assert page.locator("#credentials").is_visible()
+            assert page.locator("#chatForm button").is_disabled()
+            page.unroute("**/api/chat")
+            page.click("#connect")
+            page.wait_for_function("document.querySelector('#employee').disabled === false")
+            assert page.locator("#employee").input_value() == "UI001"
+            assert page.locator("#distance").input_value() == "25"
             page.locator("#claimForm button[type=submit]").click()
             page.wait_for_function(
                 "document.querySelector('#status').textContent === 'Ready for your review'"
@@ -167,6 +232,34 @@ with tempfile.TemporaryDirectory(prefix="claims-ui-check-") as directory:
                 path=str(artifacts / "mobile.png"), full_page=True, animations="disabled"
             )
             assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+            login = browser.new_page()
+            login.on("pageerror", lambda error: errors.append(str(error)))
+
+            def authenticate(route):
+                if route.request.headers.get("authorization") == "Bearer browser-test-token":
+                    route.continue_()
+                else:
+                    route.fulfill(status=401, json={"detail": "A valid service token is required"})
+
+            login.route("**/api/health", authenticate)
+            login.goto(url, wait_until="networkidle")
+            assert login.locator("#credentials").is_visible()
+            assert login.locator("#employee").is_disabled()
+            assert login.locator("#chatForm button").is_disabled()
+            login.set_viewport_size({"width": 320, "height": 720})
+            assert login.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+            login.fill("#token", "wrong-token")
+            login.click("#connect")
+            login.wait_for_function(
+                "document.querySelector('#chatError').textContent.includes('not accepted')"
+            )
+            assert login.locator("#employee").is_disabled()
+            login.fill("#token", "  browser-test-token  ")
+            login.click("#connect")
+            login.wait_for_function("document.querySelector('#employee').disabled === false")
+            assert login.locator("#chatError").inner_text() == ""
+            assert login.locator("#mode").inner_text() == "Demo mode"
+            assert login.evaluate("localStorage.getItem('claimSession')") is None
             assert not errors, errors
             browser.close()
         print(
@@ -179,6 +272,7 @@ with tempfile.TemporaryDirectory(prefix="claims-ui-check-") as directory:
                     "meal_cap": "30.00",
                     "reset_and_resume": "passed",
                     "pending_edits": "protected",
+                    "failed_requests_and_auth_recovery": "passed",
                     "mobile_overflow": False,
                 }
             )

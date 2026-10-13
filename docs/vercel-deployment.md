@@ -96,7 +96,16 @@ The included rules are fictional. The app creates drafts only; it does not appro
 - Database connection failure: check URL, provider availability, connection limits, network
   permissions, TLS trust, and table-creation permissions. Do not turn TLS verification off.
 - HTTP 400 Invalid host: check exposed Vercel system variables or `CLAIMS_ALLOWED_HOSTS`.
-- HTTP 401: enter the configured service token; model keys are different from this token.
+- HTTP 401 on /api/health or /api/chat: the assistant access token is missing or was not
+  accepted. Open the exact Vercel project serving your website and copy the Production
+  CLAIMS_API_TOKEN value into the website's token field, then click Connect. Enter only the
+  token text. If the environment value changed, redeploy before connecting. A refreshed
+  browser needs to connect again because the token is retained only in memory.
+  The app disables claim actions until connection succeeds and shows rejected requests
+  beside the chat. CLAIMS_LLM_API_KEY authenticates model requests, not website access.
+- Cross-origin requests disabled on your own HTTPS deployment: update to the latest code.
+  The Vercel adapter compares the public HTTPS origin even when the internal proxy forwards
+  HTTP. Other hosts and origins remain blocked; forwarded headers alone cannot bypass this.
 - Model unavailable: check provider endpoint, model ID, key, and tool-call support.
 
 ## Local verification of the deployment adapter

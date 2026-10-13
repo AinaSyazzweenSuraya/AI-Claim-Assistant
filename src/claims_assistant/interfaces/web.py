@@ -29,7 +29,7 @@ class ChatRequest(BaseModel):
     confirm: bool = False
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None, *, public_https: bool = False) -> FastAPI:
     settings = settings or Settings()
     assistant = Assistant(settings)
     app = FastAPI(title="Allowance Assistant", version="0.1.0")
@@ -53,7 +53,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         ):
             return JSONResponse({"detail": "Demo mode is loopback-only"}, status_code=403)
         origin = request.headers.get("origin")
-        if origin and origin != str(request.base_url).rstrip("/"):
+        # Vercel terminates HTTPS before forwarding to the Python function.
+        # Its public origin remains HTTPS even if the ASGI scope says HTTP.
+        # Keep the actual request host and do not trust arbitrary forwarded headers.
+        public_url = request.base_url.replace(scheme="https") if public_https else request.base_url
+        if origin and origin != str(public_url).rstrip("/"):
             return JSONResponse({"detail": "Cross-origin requests are disabled"}, status_code=403)
         response = await call_next(request)
         response.headers["Cache-Control"] = "no-store"

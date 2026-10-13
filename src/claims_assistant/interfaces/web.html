@@ -222,6 +222,25 @@
         background: #f5f4ee;
         margin-left: 35px;
       }
+      .bubble.welcome {
+        white-space: normal;
+      }
+      .bubble.failed {
+        border: 1px solid #dab4a9;
+        background: #fff6f2;
+      }
+      .request-status {
+        display: block;
+        margin-top: 8px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      #chatError {
+        color: #973c2e;
+        font-size: 13px;
+        white-space: pre-wrap;
+        margin: 8px 0;
+      }
       .bubble strong {
         display: block;
         text-transform: uppercase;
@@ -342,6 +361,10 @@
         display: flex;
         gap: 8px;
         margin: 10px 0;
+      }
+      .credentials input {
+        min-width: 0;
+        flex: 1;
       }
       @media (max-width: 850px) {
         .layout {
@@ -568,7 +591,7 @@
         <section class="panel companion">
           <h2>Your claim companion</h2>
           <div id="conversation" aria-live="polite">
-            <div class="bubble">
+            <div class="bubble welcome">
               <strong>Assistant</strong>Welcome. Start with the expense form, or
               describe your claim below. I&rsquo;ll help identify missing details and
               explain the allowance rules.
@@ -585,6 +608,7 @@
             ></textarea
             ><button class="primary" type="submit">Send</button>
           </form>
+          <div id="chatError" role="alert"></div>
           <div id="review">
             <div class="status" id="status">Collecting details</div>
             <div class="amount pending" id="claimAmount">
@@ -620,6 +644,7 @@
       const $ = (id) => document.getElementById(id);
       let state = null;
       let busy = false;
+      let connected = false;
       let formDirty = false;
       let receiptDirty = false;
       let pendingReceipt = false;
@@ -699,7 +724,7 @@
           button.disabled = busy;
         });
         $("save").disabled = busy || dirty || state?.status !== "ready";
-        $("download").disabled = busy || !state?.draft_id;
+        $("download").disabled = busy || !connected || !state?.draft_id;
         $("extract").disabled = busy || saved || !$("receiptText").value.trim();
         $("confirmEvidence").disabled =
           busy ||
@@ -712,8 +737,15 @@
             "#claimForm input, #claimForm select, #claimForm textarea, #claimForm button, #receiptFields input, #receiptText, #receiptFile",
           )
           .forEach((input) => {
-            input.disabled = busy || saved;
+            input.disabled = busy || saved || !connected;
           });
+        $("new").disabled = busy || !connected;
+        $("save").disabled ||= !connected;
+        $("extract").disabled ||= !connected;
+        $("correctReceipt").disabled ||= !connected;
+        $("confirmEvidence").disabled ||= !connected;
+        $("message").disabled = busy || !connected;
+        document.querySelector("#chatForm button").disabled = busy || !connected;
         document.body.setAttribute("aria-busy", String(busy));
         $("reviewHint").textContent = pendingReceipt
           ? "Extract your new receipt text, then review and confirm its details before saving."
@@ -741,29 +773,53 @@
       async function api(path, body) {
         const headers = {};
         if (body !== undefined) headers["Content-Type"] = "application/json";
-        if ($("token").value)
-          headers.Authorization = "Bearer " + $("token").value;
-        const response = await fetch(path, {
-          method: body === undefined ? "GET" : "POST",
-          headers,
-          body: body === undefined ? undefined : JSON.stringify(body),
-        });
+        const token = $("token").value.trim();
+        if (token) headers.Authorization = "Bearer " + token;
+        let response;
+        try {
+          response = await fetch(path, {
+            method: body === undefined ? "GET" : "POST",
+            headers,
+            body: body === undefined ? undefined : JSON.stringify(body),
+          });
+        } catch {
+          throw new Error("Unable to reach the server. Check your connection and try again.");
+        }
         const type = response.headers.get("content-type") || "";
-        const data = type.includes("application/json")
-          ? await response.json()
-          : {};
+        let data = {};
+        if (type.includes("application/json")) {
+          try {
+            data = await response.json();
+          } catch {
+            throw new Error("The server returned an unreadable reply. Please try again.");
+          }
+        }
         if (!response.ok) {
-          if (response.status === 401)
+          if (response.status === 401) {
+            connected = false;
+            $("mode").textContent = "Connection required";
             $("credentials").classList.remove("hidden");
+          }
           const error = new Error(
-            typeof data.detail === "string"
-              ? data.detail
-              : `The request failed (${response.status}). Please try again.`,
+            response.status === 401
+              ? token
+                ? "Access token was not accepted. Enter your assistant access token and click Connect."
+                : "Enter your assistant access token and click Connect."
+              : typeof data?.detail === "string"
+                ? data.detail
+                : `The request failed (${response.status}). Please try again.`,
           );
           error.status = response.status;
           throw error;
         }
+        if (!type.includes("application/json"))
+          throw new Error("The server returned an unexpected reply. Check the deployment logs.");
         return data;
+      }
+
+      function showError(message) {
+        $("error").textContent = message;
+        $("chatError").textContent = message;
       }
 
       function bubble(role, text) {
@@ -779,6 +835,7 @@
         );
         $("conversation").append(div);
         $("conversation").scrollTop = $("conversation").scrollHeight;
+        return div;
       }
 
       function renderIssues() {
@@ -891,18 +948,22 @@
         updateControls();
       }
       async function turn(options, userText) {
-        if (busy) return;
+        if (busy || !connected) return;
         if (
           (options.confirm || options.message?.trim().toLowerCase() === "confirm") &&
           (formDirty || receiptDirty || pendingReceipt)
         ) {
-          $("error").textContent =
-            "Apply and review your pending changes before confirming the draft.";
+          showError("Apply and review your pending changes before confirming the draft.");
           return;
         }
         setBusy(true);
-        $("error").textContent = "";
-        if (userText) bubble("You", userText);
+        showError("");
+        const userBubble = userText ? bubble("You", userText) : null;
+        const requestStatus = document.createElement("small");
+        requestStatus.className = "request-status";
+        requestStatus.textContent = "Waiting for the assistant...";
+        userBubble?.append(requestStatus);
+        $("conversation").scrollTop = $("conversation").scrollHeight;
         try {
           const data = await api("/api/chat", {
             ...options,
@@ -913,7 +974,14 @@
                 }
               : {}),
           });
+          if (
+            !data?.state?.session_id ||
+            typeof data.message !== "string" ||
+            !Array.isArray(data.tools)
+          )
+            throw new Error("The server returned an incomplete reply. Check the deployment logs.");
           state = data.state;
+          requestStatus.remove();
           const succeeded = (name) =>
             data.tools.some((item) => item.tool === name && item.result.ok);
           const reset = options.message === "new" && state.status !== "saved";
@@ -941,15 +1009,21 @@
               succeeded("extract_receipt"),
           );
         } catch (error) {
-          $("error").textContent = error.message;
+          userBubble?.classList.add("failed");
+          requestStatus.textContent = "Reply unavailable. See the error below.";
+          $("conversation").scrollTop = $("conversation").scrollHeight;
+          showError(error.message);
+          if (options.message && options.message !== "new" && !$("message").value)
+            $("message").value = options.message;
           if (error.status === 409 && state) {
             try {
               state = await api("/api/sessions/" + state.session_id);
               render(true);
-              $("error").textContent =
-                "This claim changed in another request. Review the refreshed details before continuing.";
+              showError(
+                "This claim changed in another request. Review the refreshed details before continuing.",
+              );
             } catch (refreshError) {
-              $("error").textContent = refreshError.message;
+              showError(refreshError.message);
             }
           }
         } finally {
@@ -991,7 +1065,7 @@
         const file = event.target.files[0];
         if (!file) return;
         if (file.size > 5 * 1024 * 1024) {
-          $("error").textContent = "Maximum file size: 5 MiB.";
+          showError("Maximum file size: 5 MiB.");
           return;
         }
         if (file.name.toLowerCase().endsWith(".txt")) {
@@ -1007,8 +1081,7 @@
             "Extract my receipt image.",
           );
         reader.onerror = () => {
-          $("error").textContent =
-            "The image could not be read. Please choose it again.";
+          showError("The image could not be read. Please choose it again.");
         };
         reader.readAsDataURL(file);
       });
@@ -1021,8 +1094,7 @@
       $("confirmEvidence").addEventListener("click", () => {
         if (!state?.claim.receipt) return;
         if (pendingReceipt) {
-          $("error").textContent =
-            "Extract your new receipt text before confirming the receipt details.";
+          showError("Extract your new receipt text before confirming the receipt details.");
           return;
         }
         const altered = receiptKeys.some(
@@ -1031,8 +1103,9 @@
             (state.claim.receipt[key] ?? null),
         );
         if (altered) {
-          $("error").textContent =
-            "Apply your corrections, review the result, then confirm the receipt details.";
+          showError(
+            "Apply your corrections, review the result, then confirm the receipt details.",
+          );
           return;
         }
         turn(
@@ -1061,7 +1134,7 @@
           link.click();
           URL.revokeObjectURL(url);
         } catch (error) {
-          $("error").textContent = error.message;
+          showError(error.message);
         }
       });
 
@@ -1070,7 +1143,7 @@
         setBusy(true);
         try {
           const health = await api("/api/health");
-          $("error").textContent = "";
+          showError("");
           $("mode").textContent =
             health.llm_mode === "demo"
               ? "Demo mode"
@@ -1088,14 +1161,16 @@
                   message.role === "user" ? "You" : "Assistant",
                   message.content,
                 );
-              render(true);
+              render(!formDirty, !receiptDirty);
             } catch (error) {
               if (error.status === 404) localStorage.removeItem("claimSession");
               else throw error;
             }
           }
+          connected = true;
         } catch (error) {
-          $("error").textContent = error.message;
+          connected = false;
+          showError(error.message);
         } finally {
           setBusy(false);
         }

@@ -73,6 +73,39 @@ def test_health_reports_missing_index(settings):
         assert web.get("/api/health").status_code == 503
 
 
+def test_public_https_accepts_same_origin_after_proxy_termination(settings):
+    settings.app_mode, settings.api_token = "private", "test-only-token"
+    settings.allowed_hosts = ["claims-test.vercel.app"]
+    with TestClient(
+        create_app(settings, public_https=True), base_url="http://claims-test.vercel.app"
+    ) as web:
+        headers = {"Authorization": "Bearer test-only-token"}
+        assert web.get("/api/health", headers=headers).status_code == 200
+        headers["Origin"] = "https://claims-test.vercel.app"
+        response = web.post(
+            "/api/chat",
+            headers=headers,
+            json={"fields": mileage().model_dump(mode="json", exclude={"receipt"})},
+        )
+        assert response.status_code == 200
+        assert response.json()["state"]["calculation"]["amount"] == "15.00"
+        for origin in ["https://untrusted.example", "http://claims-test.vercel.app"]:
+            headers["Origin"] = origin
+            assert web.post("/api/sessions", headers=headers).status_code == 403
+
+
+def test_local_origin_policy_does_not_trust_forwarded_headers(settings):
+    with client(settings) as web:
+        assert web.post("/api/sessions", headers={"Origin": "http://localhost"}).status_code == 200
+        assert (
+            web.post(
+                "/api/sessions",
+                headers={"Origin": "https://localhost", "X-Forwarded-Proto": "https"},
+            ).status_code
+            == 403
+        )
+
+
 def test_windows_default_encoding_does_not_corrupt_the_page(settings, monkeypatch):
     original = Path.read_text
 
