@@ -7,13 +7,15 @@ from pathlib import Path
 class PolicyRules:
     def __init__(self, root: Path):
         self.root = root
-        manifest = json.loads((root / "data/policies/policy_manifest.json").read_text())
+        manifest = json.loads(
+            (root / "data/policies/policy_manifest.json").read_text(encoding="utf-8")
+        )
         self.versions = []
         for item in manifest["policies"]:
             rule_path = (root / "data/rules" / item["rules_file"]).resolve()
             if not rule_path.is_relative_to((root / "data/rules").resolve()):
                 raise ValueError("Rules file must stay in data/rules")
-            rule = json.loads(rule_path.read_text())
+            rule = json.loads(rule_path.read_text(encoding="utf-8"))
             for key in ["id", "version", "effective_from", "effective_to"]:
                 if rule[key] != item[key]:
                     raise ValueError(f"Manifest/rules mismatch: {key}")

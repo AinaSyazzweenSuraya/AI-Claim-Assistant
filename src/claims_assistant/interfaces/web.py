@@ -63,7 +63,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/", response_class=HTMLResponse, include_in_schema=False)
     def home():
-        return Path(__file__).with_name("web.html").read_text()
+        return Path(__file__).with_name("web.html").read_text(encoding="utf-8")
 
     @app.get("/api/health", dependencies=[Depends(authorize)])
     def health():

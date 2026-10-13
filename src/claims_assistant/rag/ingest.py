@@ -10,7 +10,7 @@ from claims_assistant.services.policy_rules import PolicyRules
 
 
 def source_documents(root: Path) -> list[tuple[dict, Path]]:
-    manifest = json.loads((root / "data/policies/policy_manifest.json").read_text())
+    manifest = json.loads((root / "data/policies/policy_manifest.json").read_text(encoding="utf-8"))
     documents = []
     for policy in manifest["policies"]:
         for name in policy["documents"]:
@@ -43,7 +43,7 @@ def ingest(settings: Settings) -> int:
             "effective_to": policy["effective_to"],
             "source": str(path.relative_to(settings.root.resolve())),
         }
-        for chunk in chunks(path.read_text(), metadata):
+        for chunk in chunks(path.read_text(encoding="utf-8"), metadata):
             chunk["embedding"] = embed(chunk["section"] + " " + chunk["text"])
             indexed.append(chunk)
     VectorStore(settings.runtime / "vector_index/policies.json").write(

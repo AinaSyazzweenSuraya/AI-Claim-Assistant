@@ -74,7 +74,7 @@ def main() -> None:
                     path = Path(message[9:].strip())
                     if path.stat().st_size > 20000:
                         raise ValueError("Receipt text exceeds 20,000 bytes")
-                    options["receipt_text"] = path.read_text()
+                    options["receipt_text"] = path.read_text(encoding="utf-8")
                     message = ""
                 elif message == "/evidence-confirm":
                     options["confirm_receipt"] = True

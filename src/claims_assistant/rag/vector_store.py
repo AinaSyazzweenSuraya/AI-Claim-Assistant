@@ -10,7 +10,9 @@ class VectorStore:
 
     def write(self, document: dict) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        with tempfile.NamedTemporaryFile(mode="w", dir=self.path.parent, delete=False) as stream:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=self.path.parent, delete=False
+        ) as stream:
             json.dump(document, stream)
             temporary = stream.name
         os.replace(temporary, self.path)
@@ -18,4 +20,4 @@ class VectorStore:
     def read(self) -> dict:
         if not self.path.exists():
             raise ValueError("Policy index missing; run claims ingest")
-        return json.loads(self.path.read_text())
+        return json.loads(self.path.read_text(encoding="utf-8"))

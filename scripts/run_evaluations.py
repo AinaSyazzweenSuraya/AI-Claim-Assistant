@@ -68,7 +68,7 @@ def main() -> None:
     root = Path(__file__).resolve().parents[1]
     cases = [
         json.loads(line)
-        for line in (root / "evaluations/cases.jsonl").read_text().splitlines()
+        for line in (root / "evaluations/cases.jsonl").read_text(encoding="utf-8").splitlines()
         if line
     ]
     if not cases:
@@ -94,7 +94,7 @@ def main() -> None:
     }
     destination = root / "evaluations/results"
     destination.mkdir(parents=True, exist_ok=True)
-    (destination / "latest.json").write_text(json.dumps(report, indent=2))
+    (destination / "latest.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
     print(f"{passed}/{len(results)} cases passed")
     raise SystemExit(0 if passed == len(results) else 1)
 

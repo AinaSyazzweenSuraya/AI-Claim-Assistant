@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from conftest import mileage
 from fastapi.testclient import TestClient
 
@@ -68,3 +70,18 @@ def test_health_reports_missing_index(settings):
     (settings.runtime / "vector_index/policies.json").unlink()
     with client(settings) as web:
         assert web.get("/api/health").status_code == 503
+
+
+def test_windows_default_encoding_does_not_corrupt_the_page(settings, monkeypatch):
+    original = Path.read_text
+
+    def windows_read_text(path, encoding=None, errors=None):
+        return original(path, encoding=encoding or "cp1252", errors=errors)
+
+    monkeypatch.setattr(Path, "read_text", windows_read_text)
+    with client(settings) as web:
+        response = web.get("/")
+        assert response.status_code == 200
+        assert "charset=utf-8" in response.headers["content-type"]
+        assert "We’ll check the policy" in response.text
+        assert "â€™" not in response.text
