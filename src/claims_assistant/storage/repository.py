@@ -2,6 +2,8 @@ import json
 import sqlite3
 from pathlib import Path
 
+import psycopg
+
 from claims_assistant.agent.state import AgentState
 from claims_assistant.storage.database import connect
 
@@ -11,15 +13,16 @@ class ConflictError(ValueError):
 
 
 class Repository:
-    def __init__(self, path: Path):
+    def __init__(self, path: Path, database_url: str | None = None):
         self.path = path
-        with connect(path) as connection:
+        self.database_url = database_url
+        with connect(path, database_url, initialize=True) as connection:
             connection.execute("SELECT 1")
         connection.close()
 
     def create(self) -> AgentState:
         state = AgentState()
-        connection = connect(self.path)
+        connection = connect(self.path, self.database_url)
         try:
             with connection:
                 connection.execute(
@@ -31,7 +34,7 @@ class Repository:
         return state
 
     def load(self, session_id: str) -> AgentState:
-        connection = connect(self.path)
+        connection = connect(self.path, self.database_url)
         try:
             row = connection.execute(
                 "SELECT payload FROM sessions WHERE id=?", (session_id,)
@@ -43,7 +46,7 @@ class Repository:
         return AgentState.model_validate_json(row["payload"])
 
     def receipt_used(self, evidence_hash: str, fingerprint: str) -> bool:
-        connection = connect(self.path)
+        connection = connect(self.path, self.database_url)
         try:
             return (
                 connection.execute(
@@ -56,7 +59,7 @@ class Repository:
             connection.close()
 
     def commit(self, state: AgentState, expected_revision: int, draft: dict | None = None) -> None:
-        connection = connect(self.path)
+        connection = connect(self.path, self.database_url)
         next_state = state.model_copy(update={"revision": expected_revision + 1})
         try:
             with connection:
@@ -85,14 +88,14 @@ class Repository:
                             json.dumps(draft),
                         ),
                     )
-        except sqlite3.IntegrityError as exc:
+        except (sqlite3.IntegrityError, psycopg.IntegrityError) as exc:
             raise ConflictError("Duplicate receipt or draft; nothing was saved") from exc
         finally:
             connection.close()
         state.revision = next_state.revision
 
     def draft(self, draft_id: str) -> dict:
-        connection = connect(self.path)
+        connection = connect(self.path, self.database_url)
         try:
             row = connection.execute(
                 "SELECT payload FROM drafts WHERE id=?", (draft_id,)

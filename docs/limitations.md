@@ -14,3 +14,5 @@
 - Business-purpose truth is a user assertion. A model cannot determine whether a trip really qualifies.
 - Personal data persists in SQLite history and drafts until you delete it; raw uploads are not retained.
 - Installed wheels need CLAIMS_ROOT pointing to a checkout containing prompts and data.
+- Vercel requires external PostgreSQL storage and private-mode access settings. It cannot
+  run local Ollama. A live cloud database/deployment must be checked after configuration.

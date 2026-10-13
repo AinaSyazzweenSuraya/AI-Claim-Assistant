@@ -52,6 +52,10 @@ For the browser app and JSON API:
 uv run claims web
 ```
 
+To host the app on Vercel, follow [the Vercel deployment guide](docs/vercel-deployment.md).
+Vercel uses PostgreSQL via `CLAIMS_DATABASE_URL`; local development defaults to SQLite.
+The guide lists required variables and explains how to enable an external AI provider.
+
 The CLI prints the bind address. The default server binds to loopback on port 8000.
 API documentation is served at `/docs`. `/api/health` checks the local policy index; it does
 not assert that an optional model is available. Live model readiness requires a successful

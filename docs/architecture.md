@@ -28,5 +28,9 @@ SQLite uses parameterized queries, optimistic revisions, foreign keys, and atomi
 writes. Unique evidence hashes and canonical receipt fingerprints prevent reuse within this
 assistant. State/history survive process restarts. Live model/server processes must restart.
 
+Vercel uses the same repository operations against PostgreSQL configured through
+CLAIMS_DATABASE_URL. User records persist outside the function; only the policy index is
+rebuilt in /tmp on a cold start. Cloud startup requires private mode and a service token.
+
 This is standalone: exported JSON is a local artifact. Identity, production authentication,
 and organization-approved rules must be added before deployment for multiple employees.

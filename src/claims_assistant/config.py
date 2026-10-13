@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Literal
 
-from pydantic import field_validator
+from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     runtime_dir: Path | None = None
     app_mode: Literal["demo", "private"] = "demo"
     api_token: str = ""
+    database_url: SecretStr | None = None
     allowed_hosts: list[str] = ["127.0.0.1", "localhost", "[::1]"]
     llm_mode: Literal["demo", "ollama", "openai"] = "demo"
     llm_base_url: str = "http://127.0.0.1:11434/v1"

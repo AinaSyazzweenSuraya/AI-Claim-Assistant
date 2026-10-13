@@ -73,7 +73,10 @@ class Assistant:
         self.settings = settings or Settings()
         self.settings.prepare()
         self.today = today
-        self.repository = Repository(self.settings.runtime / "claims.db")
+        self.repository = Repository(
+            self.settings.runtime / "claims.db",
+            self.settings.database_url.get_secret_value() if self.settings.database_url else None,
+        )
 
     def _model_loop(self, registry: ToolRegistry, message: str, trace: list[dict]) -> None:
         messages = [

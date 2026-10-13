@@ -12,6 +12,9 @@
 - [x] Complete automated verification and evaluation run (56 tests, 17 workflow cases)
 - [x] Verify desktop/mobile browser flow, draft save/export, and receipt review
 - [x] Verify frozen installation, repeatable policy ingestion, lint, and package build
+- [x] Add Vercel entry point and PostgreSQL storage; verify 62 tests with a real local PostgreSQL instance
+- [x] Document Vercel environment variables and dashboard deployment steps
+- [ ] Verify live Vercel deployment after user configures the hosted database and access token
 - [ ] Live free local-model verification (requires accessible Ollama/model download)
 - [ ] Vision quality evaluation with selected vision model (optional)
 - [ ] Replace fictional policies with approved real policies (before real use)

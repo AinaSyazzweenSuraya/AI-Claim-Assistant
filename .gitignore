@@ -11,3 +11,4 @@ evaluations/results/*
 !evaluations/results/.gitkeep
 dist/
 *.egg-info/
+.vercel/
