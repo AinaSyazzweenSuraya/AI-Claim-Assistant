@@ -168,3 +168,41 @@ def test_policy_question_returns_grounded_sections_without_modifying_claim(assis
     assert "DEMO-ALLOWANCE v1.0" in response.message
     assert response.state.claim.category is None
     assert response.state.draft_id is None
+
+
+@pytest.mark.parametrize(
+    "message",
+    ["I drove -25 km today", "meal RM-25 today", "lodging for 2.5 nights", "lodging for -2 nights"],
+)
+def test_demo_parser_rejects_invalid_numbers_without_inventing_amounts(assistant, message):
+    response = assistant.respond(message)
+    assert response.state.claim.distance_km is None
+    assert response.state.claim.amount is None
+    assert response.state.claim.nights is None
+    assert response.state.calculation is None
+    assert response.state.draft_id is None
+    assert "Invalid" in response.message
+
+
+def test_failed_new_claim_preserves_saved_snapshot(assistant):
+    saved = turn(assistant, ready(assistant), confirm=True)
+    snapshot = assistant.repository.draft(saved.state.draft_id)
+    failed = turn(assistant, saved, message="new", fields={"distance_km": "-25"})
+    assert failed.state.status == "saved"
+    assert failed.state.claim == saved.state.claim
+    assert failed.state.calculation == saved.state.calculation
+    assert failed.state.draft_id == saved.state.draft_id
+    assert assistant.repository.draft(saved.state.draft_id) == snapshot
+    new = turn(assistant, failed, message="new")
+    assert new.state.status == "collecting"
+    assert new.state.draft_id is None
+
+
+@pytest.mark.parametrize(
+    "message", ["I drove 1,250 km today", "meal RM1,250 today", "meal RM25.50.5 today"]
+)
+def test_demo_parser_does_not_take_partial_numbers(assistant, message):
+    response = assistant.respond(message)
+    assert response.state.claim.distance_km is None
+    assert response.state.claim.amount is None
+    assert response.state.calculation is None

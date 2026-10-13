@@ -41,8 +41,8 @@ def test_invalid_claim_never_calculates(settings):
 
 
 def test_sample_policy_numbers_align_with_rules(settings):
-    text = (settings.root / "data/policies/claim_policy.md").read_text()
-    rule = json.loads((settings.root / "data/rules/claim_rules.json").read_text())
+    text = (settings.root / "data/policies/claim_policy.md").read_text(encoding="utf-8")
+    rule = json.loads((settings.root / "data/rules/claim_rules.json").read_text(encoding="utf-8"))
     for category, values in rule["categories"].items():
         section = text.split("## " + values["section"] + "\n", 1)[1].split("\n## ", 1)[0]
         for key in ["rate", "cap", "cap_per_night"]:
@@ -52,8 +52,8 @@ def test_sample_policy_numbers_align_with_rules(settings):
 
 def test_invalid_policy_rate_is_rejected(settings):
     path = settings.root / "data/rules/claim_rules.json"
-    rule = json.loads(path.read_text())
+    rule = json.loads(path.read_text(encoding="utf-8"))
     rule["categories"]["mileage"]["rate"] = "-0.60"
-    path.write_text(json.dumps(rule))
+    path.write_text(json.dumps(rule), encoding="utf-8")
     with pytest.raises(ValueError, match="positive finite"):
         PolicyRules(settings.root)

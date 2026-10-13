@@ -133,6 +133,8 @@ runtime data according to your retention policy. No raw uploads are retained aut
 
 For a hands-on walkthrough with example inputs and expected results, follow
 [the user testing guide](docs/user-testing.md).
+See the [repository review](docs/review-findings.md) for the complete interface checks,
+Windows fixes, and update/restart instructions.
 
 ```bash
 uv run pytest

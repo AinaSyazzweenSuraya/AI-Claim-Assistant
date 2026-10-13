@@ -21,7 +21,8 @@ def text_fields(text: str) -> dict:
     for key, pattern in patterns.items():
         matches = re.findall(pattern, text, re.I | re.M)
         fields[key] = matches[0].strip() if len(matches) == 1 else None
-    if fields["currency"] is None and re.search(r"^total\s*:\s*(RM|MYR)\s*\d", text, re.I | re.M):
+    explicit_currency = re.search(r"^currency\s*:", text, re.I | re.M)
+    if not explicit_currency and re.search(r"^total\s*:\s*(RM|MYR)\s*\d", text, re.I | re.M):
         fields["currency"] = "MYR"
     if fields["currency"]:
         fields["currency"] = fields["currency"].upper()

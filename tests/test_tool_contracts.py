@@ -20,6 +20,12 @@ def test_tool_error_envelopes(assistant, settings):
     assert registry.call("save_draft", {}, user_confirmed=False).code == "CONFIRMATION_REQUIRED"
 
 
+@pytest.mark.parametrize("query", [42, [], {}, "", "x" * 1001])
+def test_bad_policy_queries_return_tool_errors_instead_of_crashing(assistant, settings, query):
+    registry = ToolRegistry(settings, AgentState(), assistant.repository, TODAY)
+    assert registry.call("search_policy", {"query": query}).code == "INVALID_INPUT"
+
+
 def test_receipt_text_extraction_does_not_confirm(settings):
     result = extract_receipt(settings, text="Merchant: Demo\nDate: 2026-10-13\nTotal: RM25.00")
     assert result.ok
@@ -34,6 +40,14 @@ def test_ambiguous_receipt_does_not_guess(settings):
     assert result.data["expense_date"] is None
 
 
+@pytest.mark.parametrize("currency", ["Currency: USD\nCurrency: MYR", "Currency: unknown"])
+def test_receipt_with_ambiguous_or_invalid_explicit_currency_does_not_infer_myr(settings, currency):
+    result = extract_receipt(
+        settings, text=f"Merchant: Demo\nDate: 2026-10-13\nTotal: RM25\n{currency}"
+    )
+    assert result.data["currency"] is None
+
+
 def test_unsupported_vision_is_explicit(settings):
     assert extract_receipt(settings, image_base64="abc").code == "VISION_UNAVAILABLE"
 
@@ -45,7 +59,7 @@ def test_retrieval_citations_effective_date_and_staleness(settings):
     assert matches[0]["policy_id"] == "DEMO-ALLOWANCE" and matches[0]["version"] == "1.0"
     assert retrieve(settings, "mileage", date(2025, 12, 31)) == []
     path = settings.root / "data/policies/claim_policy.md"
-    path.write_text(path.read_text() + "\nChanged policy\n")
+    path.write_text(path.read_text(encoding="utf-8") + "\nChanged policy\n", encoding="utf-8")
     with pytest.raises(ValueError, match="stale"):
         retrieve(settings, "mileage", TODAY)
     ingest(settings)

@@ -5,6 +5,8 @@
   encrypted database, organizational audit/retention automation, or production rate limiting.
 - Saves local drafts only. No Spring Boot connection, claim submission, approval, or payment.
 - Demo parser is limited and is not an LLM. Ollama must be installed/running and its model downloaded.
+  Use plain decimal numbers without thousands separators in demo chat; use the structured
+  form for requests the parser cannot interpret. Invalid numbers must be corrected before review.
 - Default local model is text-only. Image extraction requires a compatible vision model; no bundled
   OCR engine, PDF processing, receipt authenticity checks, or accounting line-item/tax parsing.
 - Policy retrieval is lexical hashing, so paraphrases may retrieve poorly. Rates always come from JSON.

@@ -6,7 +6,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="CLAIMS_", env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_prefix="CLAIMS_", env_file=".env", env_file_encoding="utf-8", extra="ignore"
+    )
     root: Path = Path(__file__).resolve().parents[2]
     runtime_dir: Path | None = None
     app_mode: Literal["demo", "private"] = "demo"

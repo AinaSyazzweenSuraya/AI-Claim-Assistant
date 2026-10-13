@@ -1,9 +1,9 @@
 # Try the assistant as a user
 
 The standalone demo workflow was rechecked on 13 October 2026 (Asia/Kuala_Lumpur):
-56 automated tests, 17 evaluation cases, and 18 live HTTP user-flow checks passed.
-The live checks used temporary storage, leaving existing drafts untouched. The generated
-report is `evaluations/results/user-acceptance.json` (Git-ignored).
+79 automated tests including PostgreSQL, 17 evaluation cases, and desktop/mobile browser
+checks passed. The earlier 18 live HTTP user-flow checks also passed with temporary storage.
+See [the repository review](review-findings.md) for the latest checks and Windows update steps.
 
 These checks demonstrate the demo parser, claim tools, validation, calculations, receipt
 review, confirmation, API, and SQLite persistence. They do not demonstrate live Ollama or

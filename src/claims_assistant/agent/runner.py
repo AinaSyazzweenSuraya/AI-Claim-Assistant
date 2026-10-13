@@ -38,10 +38,11 @@ def demo_patch(message: str, today: date) -> dict:
         if re.search(rf"\b{category}\b", text):
             patch["category"] = category
             break
-    distance = re.search(r"\b(\d+(?:\.\d+)?)\s*km\b", text)
+    number = r"(?<![\w.,+-])([+-]?\d+(?:\.\d+)?)"
+    distance = re.search(number + r"\s*km\b", text)
     if distance:
         patch.update(category="mileage", distance_km=distance[1])
-    amount = re.search(r"\b(?:rm|myr)\s*(\d+(?:\.\d+)?)\b", text)
+    amount = re.search(r"\b(?:rm|myr)\s*([+-]?\d+(?:\.\d+)?)\b(?![\d.,])", text)
     if amount:
         patch["amount"] = amount[1]
     expense = re.search(r"\b\d{4}-\d{2}-\d{2}\b", message)
@@ -58,9 +59,11 @@ def demo_patch(message: str, today: date) -> dict:
     purpose = re.search(r"\bfor\s+(.+)$", message, re.I)
     if purpose:
         patch["purpose"] = purpose[1]
-    nights = re.search(r"\b(\d+)\s+nights?\b", text)
+    nights = re.search(number + r"\s+nights?\b", text)
     if nights:
-        patch["nights"] = int(nights[1])
+        # Preserve invalid fractional input for schema rejection instead of
+        # interpreting the trailing digits as a different number of nights.
+        patch["nights"] = int(nights[1]) if "." not in nights[1] else nights[1]
     if text.strip() == "business":
         patch["business_expense"] = True
     elif text.strip() == "personal":
@@ -248,7 +251,8 @@ class Assistant:
             # Tool failures cannot retain ready status or silently save partial changes.
             state = original.model_copy(deep=True)
             registry.state = state
-            state.status, state.calculation = "collecting", None
+            if original.status != "saved":
+                state.status, state.calculation = "collecting", None
             response_text = error
         else:
             validation = invoke("validate_claim", {})

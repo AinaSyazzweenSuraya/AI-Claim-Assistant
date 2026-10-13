@@ -14,6 +14,8 @@
 - [x] Verify frozen installation, repeatable policy ingestion, lint, and package build
 - [x] Add Vercel entry point and PostgreSQL storage; verify 62 tests with a real local PostgreSQL instance
 - [x] Document Vercel environment variables and dashboard deployment steps
+- [x] Review every tracked file; repair all static UI encoding, pending-edit handling, Windows timezone support, parser ambiguity, and saved-session rollback
+- [x] Verify the review with 79 tests including PostgreSQL, 17 scenarios, and desktop/mobile browser checks (see docs/review-findings.md)
 - [ ] Verify live Vercel deployment after user configures the hosted database and access token
 - [ ] Live free local-model verification (requires accessible Ollama/model download)
 - [ ] Vision quality evaluation with selected vision model (optional)

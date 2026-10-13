@@ -26,9 +26,12 @@ class ToolRegistry:
     def call(self, name: str, arguments: dict, user_confirmed: bool = False) -> ToolResult:
         try:
             if name == "search_policy":
+                query = arguments["query"]
+                if not isinstance(query, str) or not query.strip() or len(query) > 1000:
+                    raise ValueError("Policy query must be text between 1 and 1,000 characters")
                 return search_policy(
                     self.settings,
-                    arguments["query"],
+                    query,
                     self.state.claim.expense_date or self.today,
                 )
             if name == "update_claim":

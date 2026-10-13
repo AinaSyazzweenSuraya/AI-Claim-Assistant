@@ -1,3 +1,4 @@
+from html import unescape
 from pathlib import Path
 
 from conftest import mileage
@@ -83,5 +84,10 @@ def test_windows_default_encoding_does_not_corrupt_the_page(settings, monkeypatc
         response = web.get("/")
         assert response.status_code == 200
         assert "charset=utf-8" in response.headers["content-type"]
-        assert "We’ll check the policy" in response.text
+        assert "We’ll check the policy" in unescape(response.text)
+        assert "01 · Add details" in unescape(response.text)
+        assert "Development policy · Fictional rates" in unescape(response.text)
         assert "â€™" not in response.text
+        # Static HTML is also safe if a Windows tool reads it with a legacy encoding.
+        template = Path(__file__).parents[1] / "src/claims_assistant/interfaces/web.html"
+        assert template.read_text(encoding="cp1252") == template.read_text(encoding="utf-8")

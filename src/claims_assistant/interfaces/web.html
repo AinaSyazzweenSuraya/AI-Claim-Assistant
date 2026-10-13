@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Allowance · Claim assistant</title>
+    <title>Allowance &middot; Claim assistant</title>
     <style>
       :root {
         --ink: #15392f;
@@ -405,19 +405,19 @@
           <div class="eyebrow">Less paperwork. Clearer claims.</div>
           <h1>From expense to ready draft.</h1>
           <p>
-            Tell us what you spent. We’ll check the policy and help with the
+            Tell us what you spent. We&rsquo;ll check the policy and help with the
             details.
           </p>
         </div>
         <div class="notice">
-          Development policy · Fictional rates.<br />Drafts stay in this
+          Development policy &middot; Fictional rates.<br />Drafts stay in this
           assistant. No approval or payment is performed.
         </div>
       </div>
       <div class="steps">
-        <span id="step1" class="active">01 · Add details</span
-        ><span id="step2">02 · Check evidence</span
-        ><span id="step3">03 · Review & save</span>
+        <span id="step1" class="active">01 &middot; Add details</span
+        ><span id="step2">02 &middot; Check evidence</span
+        ><span id="step3">03 &middot; Review &amp; save</span>
       </div>
       <div id="error" role="alert"></div>
       <div class="credentials hidden" id="credentials">
@@ -570,7 +570,7 @@
           <div id="conversation" aria-live="polite">
             <div class="bubble">
               <strong>Assistant</strong>Welcome. Start with the expense form, or
-              describe your claim below. I’ll help identify missing details and
+              describe your claim below. I&rsquo;ll help identify missing details and
               explain the allowance rules.
             </div>
           </div>
@@ -579,7 +579,7 @@
               id="message"
               rows="2"
               aria-label="Your message"
-              placeholder="I drove 25 km today for a client meeting…"
+              placeholder="I drove 25 km today for a client meeting&hellip;"
               maxlength="4000"
               required
             ></textarea
@@ -612,7 +612,7 @@
         </section>
       </div>
       <footer>
-        <span>MYR · Policy-grounded calculations · Local draft storage</span
+        <span>MYR &middot; Policy-grounded calculations &middot; Local draft storage</span
         ><span>Allowance Assistant / v0.1</span>
       </footer>
     </main>
@@ -620,7 +620,9 @@
       const $ = (id) => document.getElementById(id);
       let state = null;
       let busy = false;
-      let dirty = false;
+      let formDirty = false;
+      let receiptDirty = false;
+      let pendingReceipt = false;
 
       const fieldLabels = {
         employee_id: "Employee ID",
@@ -692,6 +694,7 @@
 
       function updateControls() {
         const saved = state?.status === "saved";
+        const dirty = formDirty || receiptDirty || pendingReceipt;
         document.querySelectorAll("button").forEach((button) => {
           button.disabled = busy;
         });
@@ -712,21 +715,28 @@
             input.disabled = busy || saved;
           });
         document.body.setAttribute("aria-busy", String(busy));
-        $("reviewHint").textContent = dirty
-          ? "Your details changed. Apply your changes and review the updated draft before saving."
-          : saved
-            ? "Your draft is saved. Export a copy or start a new claim."
-            : state?.status === "ready"
-              ? "Check the details above, then confirm to save your draft."
-              : "Complete the required details before saving a draft.";
+        $("reviewHint").textContent = pendingReceipt
+          ? "Extract your new receipt text, then review and confirm its details before saving."
+          : dirty
+            ? "Your details changed. Apply your changes and review the updated draft before saving."
+            : saved
+              ? "Your draft is saved. Export a copy or start a new claim."
+              : state?.status === "ready"
+                ? "Check the details above, then confirm to save your draft."
+                : "Complete the required details before saving a draft.";
       }
-      function markDirty() {
-        dirty = true;
+      $("claimForm").addEventListener("input", () => {
+        formDirty = true;
         updateControls();
-      }
-      $("claimForm").addEventListener("input", markDirty);
-      $("receiptFields").addEventListener("input", markDirty);
-      $("receiptText").addEventListener("input", updateControls);
+      });
+      $("receiptFields").addEventListener("input", () => {
+        receiptDirty = true;
+        updateControls();
+      });
+      $("receiptText").addEventListener("input", () => {
+        pendingReceipt = Boolean($("receiptText").value.trim());
+        updateControls();
+      });
 
       async function api(path, body) {
         const headers = {};
@@ -776,7 +786,7 @@
         const report = state?.validation;
         if (report?.missing.length) {
           const lead = document.createElement("div");
-          lead.textContent = "To prepare your draft, please add:";
+          lead.textContent = "Complete and check these details to prepare your draft:";
           const list = document.createElement("ul");
           list.className = "issue-list";
           for (const key of report.missing) {
@@ -800,10 +810,10 @@
         }
       }
 
-      function render(sync = false) {
+      function render(sync = false, syncReceipt = true) {
         if (!state) return;
         if (sync) {
-          dirty = false;
+          formDirty = false;
           const claim = state.claim;
           for (const [id, key] of [
             ["employee", "employee_id"],
@@ -853,8 +863,11 @@
         });
         const receipt = state.claim.receipt;
         $("receiptReview").classList.toggle("hidden", !receipt);
-        $("receiptFields").replaceChildren();
-        if (receipt) {
+        if (syncReceipt) {
+          receiptDirty = false;
+          $("receiptFields").replaceChildren();
+        }
+        if (receipt && syncReceipt) {
           for (const key of receiptKeys) {
             const div = document.createElement("div");
             const label = document.createElement("label");
@@ -879,6 +892,14 @@
       }
       async function turn(options, userText) {
         if (busy) return;
+        if (
+          (options.confirm || options.message?.trim().toLowerCase() === "confirm") &&
+          (formDirty || receiptDirty || pendingReceipt)
+        ) {
+          $("error").textContent =
+            "Apply and review your pending changes before confirming the draft.";
+          return;
+        }
         setBusy(true);
         $("error").textContent = "";
         if (userText) bubble("You", userText);
@@ -893,17 +914,32 @@
               : {}),
           });
           state = data.state;
-          if (options.message === "new") {
+          const succeeded = (name) =>
+            data.tools.some((item) => item.tool === name && item.result.ok);
+          const reset = options.message === "new" && state.status !== "saved";
+          if (
+            (options.receipt_text || options.receipt_image) &&
+            succeeded("extract_receipt")
+          )
+            pendingReceipt = false;
+          if (reset) {
+            pendingReceipt = false;
             $("conversation").replaceChildren();
             $("receiptText").value = "";
             $("receiptFile").value = "";
             $("message").value = "";
             bubble(
               "Assistant",
-              "Let’s start a new claim. Add your expense details or describe your trip below.",
+              "Let's start a new claim. Add your expense details or describe your trip below.",
             );
           } else bubble("Assistant", data.message);
-          render(true);
+          render(
+            reset || !formDirty || (Boolean(options.fields) && succeeded("update_claim")),
+            reset ||
+              !receiptDirty ||
+              Boolean(options.receipt_fields) ||
+              succeeded("extract_receipt"),
+          );
         } catch (error) {
           $("error").textContent = error.message;
           if (error.status === 409 && state) {
@@ -960,6 +996,7 @@
         }
         if (file.name.toLowerCase().endsWith(".txt")) {
           $("receiptText").value = await file.text();
+          pendingReceipt = Boolean($("receiptText").value.trim());
           updateControls();
           return;
         }
@@ -983,6 +1020,11 @@
       });
       $("confirmEvidence").addEventListener("click", () => {
         if (!state?.claim.receipt) return;
+        if (pendingReceipt) {
+          $("error").textContent =
+            "Extract your new receipt text before confirming the receipt details.";
+          return;
+        }
         const altered = receiptKeys.some(
           (key) =>
             ($("receipt-" + key).value || null) !==
@@ -1024,6 +1066,8 @@
       });
 
       async function connect() {
+        if (busy) return;
+        setBusy(true);
         try {
           const health = await api("/api/health");
           $("error").textContent = "";
@@ -1052,6 +1096,8 @@
           }
         } catch (error) {
           $("error").textContent = error.message;
+        } finally {
+          setBusy(false);
         }
       }
       $("connect").addEventListener("click", connect);
