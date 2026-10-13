@@ -1,0 +1,18 @@
+# Development checklist
+
+- [x] Fictional policy, aligned rule metadata/rates, submission guide, and runtime prompts
+- [x] Requirements, architecture, tool contracts, schema documentation, limitations
+- [x] Pydantic claim/receipt schemas and deterministic Decimal calculations
+- [x] Required fields, policy eligibility, deadlines, evidence consistency validation
+- [x] Offline policy ingestion, version filtering, citations, stale-index detection
+- [x] Tool registry, bounded single-agent model loop, persistent conversation states
+- [x] SQLite local drafts, revision checks, atomic commits, duplicate evidence checks
+- [x] CLI and standalone browser/API interface
+- [x] Labeled-text receipt extraction, correction/review; optional model vision adapter
+- [x] Complete automated verification and evaluation run (56 tests, 17 workflow cases)
+- [x] Verify desktop/mobile browser flow, draft save/export, and receipt review
+- [x] Verify frozen installation, repeatable policy ingestion, lint, and package build
+- [ ] Live free local-model verification (requires accessible Ollama/model download)
+- [ ] Vision quality evaluation with selected vision model (optional)
+- [ ] Replace fictional policies with approved real policies (before real use)
+- [ ] Multi-user identity/authorization and production deployment controls (future scope)

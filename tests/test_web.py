@@ -1,0 +1,70 @@
+from conftest import mileage
+from fastapi.testclient import TestClient
+
+from claims_assistant.interfaces.web import create_app
+
+
+def client(settings):
+    return TestClient(
+        create_app(settings), base_url="http://localhost", client=("127.0.0.1", 50000)
+    )
+
+
+def test_api_complete_draft_and_revision_conflict(settings):
+    with client(settings) as web:
+        assert web.get("/").status_code == 200
+        assert web.get("/api/health").json()["status"] == "ok"
+        response = web.post(
+            "/api/chat", json={"fields": mileage().model_dump(mode="json", exclude={"receipt"})}
+        )
+        state = response.json()["state"]
+        assert state["status"] == "ready"
+        saved = web.post(
+            "/api/chat",
+            json={
+                "session_id": state["session_id"],
+                "expected_revision": state["revision"],
+                "confirm": True,
+            },
+        )
+        draft_id = saved.json()["state"]["draft_id"]
+        assert web.get("/api/drafts/" + draft_id).json()["calculation"]["amount"] == "15.00"
+        assert (
+            web.post(
+                "/api/chat",
+                json={
+                    "session_id": state["session_id"],
+                    "expected_revision": state["revision"],
+                    "confirm": True,
+                },
+            ).status_code
+            == 409
+        )
+        assert web.post("/api/chat", json={"confirm": True}).status_code == 422
+
+
+def test_private_api_authentication(settings):
+    settings.app_mode, settings.api_token = "private", "test-only-token"
+    with client(settings) as web:
+        assert web.get("/api/health").status_code == 401
+        assert web.get("/api/health", headers={"Authorization": "Bearer wrong"}).status_code == 401
+        assert (
+            web.get("/api/health", headers={"Authorization": "Bearer test-only-token"}).status_code
+            == 200
+        )
+
+
+def test_cross_origin_and_unknown_session(settings):
+    with client(settings) as web:
+        assert (
+            web.post("/api/sessions", headers={"Origin": "https://untrusted.example"}).status_code
+            == 403
+        )
+        assert web.get("/api/sessions/00000000-0000-0000-0000-000000000000").status_code == 404
+        assert web.post("/api/chat", json={"unknown": "field"}).status_code == 422
+
+
+def test_health_reports_missing_index(settings):
+    (settings.runtime / "vector_index/policies.json").unlink()
+    with client(settings) as web:
+        assert web.get("/api/health").status_code == 503

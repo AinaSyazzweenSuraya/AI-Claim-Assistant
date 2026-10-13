@@ -1,0 +1,5 @@
+Merchant: Fictional Example Cafe
+Date: 2026-10-13
+Total: RM25.00
+Currency: MYR
+Receipt: DEMO-MEAL-001

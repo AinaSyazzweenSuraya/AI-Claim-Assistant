@@ -1,0 +1,10 @@
+{
+  "policies": [{
+    "id": "DEMO-ALLOWANCE",
+    "version": "1.0",
+    "effective_from": "2026-01-01",
+    "effective_to": null,
+    "documents": ["claim_policy.md", "submission_guide.md"],
+    "rules_file": "claim_rules.json"
+  }]
+}

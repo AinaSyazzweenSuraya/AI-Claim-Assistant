@@ -1,0 +1,5 @@
+Merchant: Fictional UAT Cafe
+Date: 2026-10-13
+Total: RM45.00
+Currency: MYR
+Receipt: USER-TEST-MEAL-001

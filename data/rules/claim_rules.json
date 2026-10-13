@@ -1,0 +1,15 @@
+{
+  "id": "DEMO-ALLOWANCE",
+  "version": "1.0",
+  "effective_from": "2026-01-01",
+  "effective_to": null,
+  "currency": "MYR",
+  "deadline_days": 30,
+  "rounding": "ROUND_HALF_UP",
+  "categories": {
+    "mileage": {"rate": "0.60", "cap": "300.00", "receipt_required": false, "section": "Mileage"},
+    "meal": {"cap": "30.00", "receipt_required": true, "section": "Meal"},
+    "parking": {"cap": "50.00", "receipt_required": true, "section": "Parking"},
+    "lodging": {"cap_per_night": "180.00", "receipt_required": true, "section": "Lodging"}
+  }
+}

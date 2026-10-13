@@ -1,0 +1,4 @@
+[
+  {"employee_id":"DEMO001","category":"mileage","expense_date":"2026-10-13","purpose":"Fictional client visit","business_expense":true,"distance_km":"25","route":"KL to PJ"},
+  {"employee_id":"DEMO002","category":"meal","expense_date":"2026-10-13","purpose":"Fictional client lunch","business_expense":true,"amount":"25.00"}
+]

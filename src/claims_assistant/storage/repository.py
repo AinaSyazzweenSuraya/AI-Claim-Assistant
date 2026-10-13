@@ -1,0 +1,104 @@
+import json
+import sqlite3
+from pathlib import Path
+
+from claims_assistant.agent.state import AgentState
+from claims_assistant.storage.database import connect
+
+
+class ConflictError(ValueError):
+    pass
+
+
+class Repository:
+    def __init__(self, path: Path):
+        self.path = path
+        with connect(path) as connection:
+            connection.execute("SELECT 1")
+        connection.close()
+
+    def create(self) -> AgentState:
+        state = AgentState()
+        connection = connect(self.path)
+        try:
+            with connection:
+                connection.execute(
+                    "INSERT INTO sessions VALUES (?, ?, ?)",
+                    (state.session_id, state.revision, state.model_dump_json()),
+                )
+        finally:
+            connection.close()
+        return state
+
+    def load(self, session_id: str) -> AgentState:
+        connection = connect(self.path)
+        try:
+            row = connection.execute(
+                "SELECT payload FROM sessions WHERE id=?", (session_id,)
+            ).fetchone()
+        finally:
+            connection.close()
+        if not row:
+            raise KeyError("Session not found")
+        return AgentState.model_validate_json(row["payload"])
+
+    def receipt_used(self, evidence_hash: str, fingerprint: str) -> bool:
+        connection = connect(self.path)
+        try:
+            return (
+                connection.execute(
+                    "SELECT 1 FROM drafts WHERE receipt_hash=? OR receipt_fingerprint=?",
+                    (evidence_hash, fingerprint),
+                ).fetchone()
+                is not None
+            )
+        finally:
+            connection.close()
+
+    def commit(self, state: AgentState, expected_revision: int, draft: dict | None = None) -> None:
+        connection = connect(self.path)
+        next_state = state.model_copy(update={"revision": expected_revision + 1})
+        try:
+            with connection:
+                cursor = connection.execute(
+                    "UPDATE sessions SET revision=?, payload=? WHERE id=? AND revision=?",
+                    (
+                        next_state.revision,
+                        next_state.model_dump_json(),
+                        state.session_id,
+                        expected_revision,
+                    ),
+                )
+                if cursor.rowcount != 1:
+                    raise ConflictError("Session changed; reload before retrying")
+                if draft:
+                    receipt = state.claim.receipt
+                    connection.execute(
+                        "INSERT INTO drafts "
+                        "(id,session_id,receipt_hash,receipt_fingerprint,payload) "
+                        "VALUES (?,?,?,?,?)",
+                        (
+                            draft["id"],
+                            state.session_id,
+                            receipt.evidence_hash if receipt else None,
+                            receipt.fingerprint() if receipt else None,
+                            json.dumps(draft),
+                        ),
+                    )
+        except sqlite3.IntegrityError as exc:
+            raise ConflictError("Duplicate receipt or draft; nothing was saved") from exc
+        finally:
+            connection.close()
+        state.revision = next_state.revision
+
+    def draft(self, draft_id: str) -> dict:
+        connection = connect(self.path)
+        try:
+            row = connection.execute(
+                "SELECT payload FROM drafts WHERE id=?", (draft_id,)
+            ).fetchone()
+        finally:
+            connection.close()
+        if not row:
+            raise KeyError("Draft not found")
+        return json.loads(row["payload"])
