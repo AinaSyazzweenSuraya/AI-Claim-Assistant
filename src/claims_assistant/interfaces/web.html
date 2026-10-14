@@ -306,12 +306,6 @@
         letter-spacing: -0.5px;
         font-weight: 600;
       }
-      .actions label.secondary {
-        font-size: 14px;
-        font-weight: 500;
-        display: inline-flex;
-        align-items: center;
-      }
       .companion {
         position: sticky;
         top: 24px;
@@ -571,11 +565,13 @@
           ></textarea>
           <div class="actions" style="margin-top: 10px">
             <button class="secondary" id="extract">Extract text</button
-            ><label
+            ><button
+              id="chooseReceipt"
+              type="button"
               class="secondary"
-              for="receiptFile"
-              style="margin: 0; cursor: pointer"
-              >Choose .txt or image</label
+              aria-describedby="uploadHint"
+              disabled
+              >Choose .txt or image</button
             ><input
               id="receiptFile"
               type="file"
@@ -583,6 +579,8 @@
               class="hidden"
             />
           </div>
+          <p id="uploadHint" class="muted" role="status">Connecting to the assistant...</p>
+          <button id="retryConnection" class="secondary hidden" type="button">Retry connection</button>
           <figure id="receiptPreview" class="hidden">
             <img id="receiptPreviewImage" alt="Your uploaded receipt or transaction screenshot" />
             <figcaption class="muted">Compare the extracted fields with this image.</figcaption>
@@ -764,6 +762,17 @@
           .forEach((input) => {
             input.disabled = busy || saved || !connected;
           });
+        $("chooseReceipt").disabled = $("receiptFile").disabled;
+        $("retryConnection").classList.toggle("hidden", connected);
+        $("uploadHint").textContent = busy
+          ? connected
+            ? "Please wait for the current request to finish before choosing another file."
+            : "Connecting to the assistant..."
+          : !connected
+            ? "Upload is unavailable until the assistant connects. Check the error above, then retry the connection."
+            : saved
+              ? "This draft is saved. Click New claim to upload another receipt."
+              : "Choose a PNG, JPEG, or text file up to 5 MiB.";
         $("new").disabled = busy || !connected;
         $("save").disabled ||= !connected;
         $("extract").disabled ||= !connected;
@@ -1096,6 +1105,7 @@
           "Extract my receipt text.",
         ),
       );
+      $("chooseReceipt").addEventListener("click", () => $("receiptFile").click());
       $("receiptFile").addEventListener("change", async (event) => {
         const file = event.target.files[0];
         if (!file) return;
@@ -1230,6 +1240,7 @@
         }
       }
       $("connect").addEventListener("click", connect);
+      $("retryConnection").addEventListener("click", connect);
       updateControls();
       connect();
     </script>

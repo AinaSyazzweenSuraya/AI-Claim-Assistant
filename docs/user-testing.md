@@ -27,6 +27,13 @@ path if you want to resume them; operating-system cleanup may delete temporary f
 For the browser interface instead, run `uv run claims web` in the same configured terminal.
 Use the browser form and action buttons corresponding to the CLI steps below.
 
+Keep the web-server terminal running and open its printed address on the same computer.
+Click **Choose .txt or image** to open the native file picker. The text-extraction button
+requires pasted text. A message below the upload button explains when an active request,
+connection failure, or saved draft disables uploads. Use **Retry connection** after resolving
+connection errors, or **New claim** to add evidence after saving a draft. Uploading a file
+does not prove model extraction worked; review the proposed fields before confirming evidence.
+
 These examples use 2026-10-13. If testing later, replace every claim and receipt date with
 the same recent date. Dates more than 30 days old are intentionally rejected.
 Enter `new` between scenarios to clear the current claim.

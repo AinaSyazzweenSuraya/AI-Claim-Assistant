@@ -35,6 +35,7 @@ with tempfile.TemporaryDirectory(prefix="claims-ui-check-") as directory:
     env.update(
         CLAIMS_RUNTIME_DIR=directory,
         CLAIMS_LLM_MODE="demo",
+        CLAIMS_RECEIPT_IMAGE_BACKEND="vision",
         CLAIMS_APP_MODE="demo",
         CLAIMS_API_TOKEN="",
         CLAIMS_DATABASE_URL="",
@@ -81,6 +82,10 @@ with tempfile.TemporaryDirectory(prefix="claims-ui-check-") as directory:
             assert page.locator("#step3").inner_text() == "03 · Review & save"
             assert page.locator("#claimAmount").inner_text() == "Not calculated yet"
             assert page.locator("#save").is_disabled()
+            assert page.locator("#chooseReceipt").is_enabled()
+            with page.expect_file_chooser() as chooser:
+                page.click("#chooseReceipt")
+            chooser.value.set_files([])
             page.click("#new")
             page.wait_for_function("document.querySelector('#issues li') !== null")
             assert "Employee ID" in page.locator("#issues").inner_text()
@@ -93,6 +98,16 @@ with tempfile.TemporaryDirectory(prefix="claims-ui-check-") as directory:
             page.fill("#route", "KL to PJ")
             page.fill("#purpose", "Client meeting at Café Example")
             page.check("#business")
+            held_requests = []
+            page.route("**/api/chat", lambda route: held_requests.append(route))
+            page.locator("#claimForm button[type=submit]").click()
+            page.wait_for_function("document.querySelector('#chooseReceipt').disabled === true")
+            assert "current request" in page.locator("#uploadHint").inner_text()
+            assert page.locator("#receiptFile").is_disabled()
+            assert held_requests
+            held_requests[0].fulfill(status=503, json={"detail": "Temporary test failure"})
+            page.wait_for_function("document.querySelector('#chooseReceipt').disabled === false")
+            page.unroute("**/api/chat")
             # A rejected or interrupted request must show its error beside the chat,
             # preserve the edited fields, and never look like a completed turn.
             failures = [
@@ -184,8 +199,12 @@ with tempfile.TemporaryDirectory(prefix="claims-ui-check-") as directory:
                 "document.querySelector('#status').textContent === 'Draft saved'"
             )
             assert "Saved as a draft" in page.locator("#issues").inner_text()
+            assert page.locator("#chooseReceipt").is_disabled()
+            assert page.locator("#receiptFile").is_disabled()
+            assert "Click New claim" in page.locator("#uploadHint").inner_text()
             page.click("#new")
             page.wait_for_function("document.querySelector('#employee').value === ''")
+            assert page.locator("#chooseReceipt").is_enabled()
             assert page.locator("#expenseDate").input_value() == today
             assert page.locator("#receiptText").input_value() == ""
             assert "Café" not in page.locator("#conversation").inner_text()
@@ -216,7 +235,9 @@ with tempfile.TemporaryDirectory(prefix="claims-ui-check-") as directory:
             assert page.locator("#save").is_disabled()
             page.locator("#claimForm button[type=submit]").click()
             page.wait_for_function("document.querySelector('#save').disabled === false")
-            page.locator("#receiptFile").set_input_files(sample_image)
+            with page.expect_file_chooser() as chooser:
+                page.click("#chooseReceipt")
+            chooser.value.set_files(sample_image)
             page.wait_for_function(
                 "document.querySelector('#conversation').textContent"
                 ".includes('Use labeled receipt text in demo mode')"
@@ -266,6 +287,14 @@ with tempfile.TemporaryDirectory(prefix="claims-ui-check-") as directory:
             assert login.locator("#credentials").is_visible()
             assert login.locator("#employee").is_disabled()
             assert login.locator("#chatForm button").is_disabled()
+            assert login.locator("#chooseReceipt").is_disabled()
+            assert "assistant connects" in login.locator("#uploadHint").inner_text()
+            assert login.locator("#retryConnection").is_visible()
+            login.click("#retryConnection")
+            login.wait_for_function(
+                "document.querySelector('body').getAttribute('aria-busy') === 'false'"
+            )
+            assert login.locator("#chooseReceipt").is_disabled()
             login.set_viewport_size({"width": 320, "height": 720})
             assert login.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
             login.fill("#token", "wrong-token")
@@ -279,6 +308,8 @@ with tempfile.TemporaryDirectory(prefix="claims-ui-check-") as directory:
             login.wait_for_function("document.querySelector('#employee').disabled === false")
             assert login.locator("#chatError").inner_text() == ""
             assert login.locator("#mode").inner_text() == "Demo mode"
+            assert login.locator("#chooseReceipt").is_enabled()
+            assert login.locator("#retryConnection").is_hidden()
             assert login.evaluate("localStorage.getItem('claimSession')") is None
             assert not errors, errors
             browser.close()
@@ -294,6 +325,7 @@ with tempfile.TemporaryDirectory(prefix="claims-ui-check-") as directory:
                     "pending_edits": "protected",
                     "failed_requests_and_auth_recovery": "passed",
                     "image_preview_and_failed_scan_guard": "passed",
+                    "native_file_picker_and_disabled_reasons": "passed",
                     "mobile_overflow": False,
                 }
             )
