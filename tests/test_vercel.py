@@ -41,3 +41,15 @@ def test_vercel_adapter_sets_https_public_origin(settings, monkeypatch):
     monkeypatch.setattr("claims_assistant.interfaces.vercel.create_app", factory)
     assert create_vercel_app() is factory.return_value
     factory.assert_called_once_with(settings, public_https=True)
+
+
+def test_vercel_rejects_local_florence_before_loading_models(settings, monkeypatch):
+    settings.app_mode, settings.api_token = "private", "test-only-token"
+    settings.database_url = SecretStr("postgresql://example.invalid/claims")
+    settings.receipt_image_backend = "florence"
+    monkeypatch.setattr("claims_assistant.interfaces.vercel.Settings", lambda **_: settings)
+    factory = Mock()
+    monkeypatch.setattr("claims_assistant.interfaces.vercel.create_app", factory)
+    with pytest.raises(ValueError, match="Local Florence OCR"):
+        create_vercel_app()
+    factory.assert_not_called()

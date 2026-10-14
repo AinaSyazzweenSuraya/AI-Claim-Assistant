@@ -19,6 +19,8 @@ def main() -> None:
     once.add_argument("--revision", type=int)
     show = commands.add_parser("draft", help="Export a local draft as JSON")
     show.add_argument("id")
+    ocr = commands.add_parser("ocr", help="Scan a PNG/JPEG locally with optional Florence packages")
+    ocr.add_argument("path", type=Path)
     serve = commands.add_parser("web", help="Start the local web app and API")
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8000)
@@ -27,6 +29,17 @@ def main() -> None:
     settings.prepare()
     if arguments.command == "ingest":
         print(f"Indexed {ingest(settings)} policy sections")
+        return
+    if arguments.command == "ocr":
+        from claims_assistant.vision.florence import OcrError, scan_receipt
+        from claims_assistant.vision.images import MAX_IMAGE_BYTES
+
+        try:
+            if arguments.path.stat().st_size > MAX_IMAGE_BYTES:
+                raise ValueError("Image exceeds 5 MiB")
+            print(scan_receipt(settings, arguments.path.read_bytes()))
+        except (OSError, ValueError, OcrError) as exc:
+            parser.exit(1, str(exc) + "\n")
         return
     if arguments.command == "web":
         if (

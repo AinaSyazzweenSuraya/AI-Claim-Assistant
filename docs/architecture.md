@@ -14,6 +14,13 @@ flowchart LR
   P --> V
 ```
 
+Optional local image processing: the Florence OCR backend reads PNG/JPEG bytes and passes
+untrusted text to the same text-model receipt extractor. It uses native Transformers with
+the documented Florence-2 base checkpoint and cached weights. The default image backend
+continues to send images to a compatible vision model. OCR/model extraction only proposes
+fields; explicit evidence review, policy retrieval, validation, calculation, and saving are
+controlled by the existing runner. See [Florence setup](florence-receipts.md).
+
 The runner holds a per-turn Pydantic state loaded from SQLite, not mutable global conversation
 state. Tools return an `ok/data/code/message` envelope. The LLM may propose claim fields and
 search policies, with at most four rounds and four calls per round. It cannot assert business

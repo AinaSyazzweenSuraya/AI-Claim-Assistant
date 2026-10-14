@@ -7,6 +7,8 @@ from claims_assistant.config import Settings
 from claims_assistant.llm.client import ModelClient
 from claims_assistant.schemas.receipt import Receipt
 from claims_assistant.schemas.tool_result import ToolResult
+from claims_assistant.vision.florence import OcrError, scan_receipt
+from claims_assistant.vision.images import receipt_image
 
 
 def text_fields(text: str) -> dict:
@@ -46,26 +48,36 @@ def extract_receipt(
         method = "text" if settings.llm_mode == "demo" else "model_text"
     else:
         if settings.llm_mode == "demo":
+            if settings.receipt_image_backend == "florence":
+                return ToolResult.error(
+                    "TEXT_MODEL_REQUIRED",
+                    "Florence reads image text; enable Ollama or a hosted "
+                    "text model to extract the receipt fields",
+                )
             return ToolResult.error("VISION_UNAVAILABLE", "Use labeled receipt text in demo mode")
         if len(image_base64) > 7_000_000:
             raise ValueError("Image exceeds 5 MiB")
         raw = base64.b64decode(image_base64, validate=True)
         if len(raw) > 5 * 1024 * 1024:
             raise ValueError("Image exceeds 5 MiB")
-        if raw.startswith(b"\x89PNG\r\n\x1a\n"):
-            mime = "image/png"
-        elif raw.startswith(b"\xff\xd8\xff"):
-            mime = "image/jpeg"
+        if settings.receipt_image_backend == "florence":
+            try:
+                content = scan_receipt(settings, raw)
+            except OcrError as exc:
+                return ToolResult.error("OCR_UNAVAILABLE", str(exc))
+            method = "florence_ocr_text"
         else:
-            raise ValueError("Only PNG and JPEG are supported")
-        fields = ModelClient(settings).receipt(
-            load(settings.root, "receipt_extraction.md"),
-            [
+            with receipt_image(raw):
+                pass  # Reject corrupt or oversized images before any model request.
+            mime = "image/png" if raw.startswith(b"\x89PNG") else "image/jpeg"
+            content = [
                 {"type": "text", "text": "Extract the receipt fields. Do not guess."},
                 {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{image_base64}"}},
-            ],
+            ]
+            method = "model_image"
+        fields = ModelClient(settings).receipt(
+            load(settings.root, "receipt_extraction.md"), content
         )
-        method = "model_image"
     receipt = Receipt(
         **fields,
         evidence_hash=hashlib.sha256(raw).hexdigest(),

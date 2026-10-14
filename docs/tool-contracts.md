@@ -4,6 +4,7 @@ All tools return `{ok: bool, data: object|null, code: string|null, message: stri
 Validation issues are successful tool execution with `data.valid=false`; transport/input/tool
 failures use `ok=false`. Common codes: INVALID_INPUT, UNKNOWN_TOOL, STORAGE_ERROR,
 MODEL_UNAVAILABLE, VISION_UNAVAILABLE, CONFIRMATION_REQUIRED, REVIEW_CHANGED, DUPLICATE_RECEIPT.
+Local scanning also returns OCR_UNAVAILABLE and TEXT_MODEL_REQUIRED when prerequisites fail.
 
 | Tool | Input | Successful output | Failure behavior |
 | --- | --- | --- | --- |
@@ -16,6 +17,13 @@ MODEL_UNAVAILABLE, VISION_UNAVAILABLE, CONFIRMATION_REQUIRED, REVIEW_CHANGED, DU
 
 Only update_claim and search_policy are offered to the model. Other tools are orchestrated by
 the server. save_draft prepares data; the runner persists it atomically with the session.
+
+`CLAIMS_RECEIPT_IMAGE_BACKEND=florence` runs local `<OCR>` followed by text-model field
+extraction; `vision` uses the selected model's image interface. PNG/JPEG bytes are decoded
+and verified, limited to 5 MiB/20 million pixels/single frame, and EXIF orientation is normalized
+for local OCR. Empty/truncated scans fail instead of returning partial usable evidence.
+Extraction metadata is `florence_ocr_text` for the local path. Duplicate hashes cover the
+original image bytes, not the OCR text. No raw OCR text or image is automatically persisted.
 
 API: POST /api/sessions, GET /api/sessions/{UUID}, POST /api/chat,
 GET /api/drafts/{UUID}, GET /api/health. Chat supports message, fields, receipt_text,

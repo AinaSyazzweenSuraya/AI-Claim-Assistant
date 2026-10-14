@@ -12,6 +12,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import httpx
+from PIL import Image, ImageDraw
 from playwright.sync_api import sync_playwright
 
 root = Path(__file__).resolve().parents[1]
@@ -24,6 +25,12 @@ url = f"http://127.0.0.1:{port}"
 today = datetime.now(ZoneInfo("Asia/Kuala_Lumpur")).date().isoformat()
 errors = []
 with tempfile.TemporaryDirectory(prefix="claims-ui-check-") as directory:
+    sample_image = Path(directory) / "fictional-transaction.png"
+    with Image.new("RGB", (640, 240), "white") as receipt:
+        ImageDraw.Draw(receipt).text(
+            (20, 20), f"Fictional Payee\n{today}\nRM45.00\nReference UI001", fill="black"
+        )
+        receipt.save(sample_image)
     env = os.environ.copy()
     env.update(
         CLAIMS_RUNTIME_DIR=directory,
@@ -209,6 +216,19 @@ with tempfile.TemporaryDirectory(prefix="claims-ui-check-") as directory:
             assert page.locator("#save").is_disabled()
             page.locator("#claimForm button[type=submit]").click()
             page.wait_for_function("document.querySelector('#save').disabled === false")
+            page.locator("#receiptFile").set_input_files(sample_image)
+            page.wait_for_function(
+                "document.querySelector('#conversation').textContent"
+                ".includes('Use labeled receipt text in demo mode')"
+            )
+            assert page.locator("#receiptPreview").is_visible()
+            assert page.locator("#save").is_disabled()
+            assert "new image has not been extracted" in page.locator("#reviewHint").inner_text()
+            page.click("#clearImage")
+            assert page.locator("#receiptPreview").is_hidden()
+            assert page.locator("#receiptFile").input_value() == ""
+            page.locator("#claimForm button[type=submit]").click()
+            page.wait_for_function("document.querySelector('#save').disabled === false")
             page.fill("#receiptText", f"Merchant: New Cafe\nDate: {today}\nTotal: RM45.00")
             assert page.locator("#save").is_disabled()
             page.fill("#message", "confirm")
@@ -273,6 +293,7 @@ with tempfile.TemporaryDirectory(prefix="claims-ui-check-") as directory:
                     "reset_and_resume": "passed",
                     "pending_edits": "protected",
                     "failed_requests_and_auth_recovery": "passed",
+                    "image_preview_and_failed_scan_guard": "passed",
                     "mobile_overflow": False,
                 }
             )

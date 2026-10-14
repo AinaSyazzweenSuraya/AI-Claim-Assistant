@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     llm_model: str = "llama3.2:3b"
     llm_api_key: str = ""
     llm_timeout: float = 120
+    receipt_image_backend: Literal["vision", "florence"] = "vision"
+    florence_device: Literal["cpu", "cuda"] = "cpu"
 
     @field_validator("root", "runtime_dir")
     @classmethod

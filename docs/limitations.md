@@ -7,8 +7,11 @@
 - Demo parser is limited and is not an LLM. Ollama must be installed/running and its model downloaded.
   Use plain decimal numbers without thousands separators in demo chat; use the structured
   form for requests the parser cannot interpret. Invalid numbers must be corrected before review.
-- Default local model is text-only. Image extraction requires a compatible vision model; no bundled
-  OCR engine, PDF processing, receipt authenticity checks, or accounting line-item/tax parsing.
+- Default local model is text-only. Images require a compatible vision model or the optional
+  local Florence OCR backend plus a text LLM. Florence packages/weights are downloaded separately;
+  no PDF processing, receipt authenticity checks, or accounting line-item/tax parsing.
+- Native Florence runs locally and is not hosted by this Vercel function. Its real OCR accuracy
+  requires testing on staff images. A transaction screenshot does not establish eligibility.
 - Policy retrieval is lexical hashing, so paraphrases may retrieve poorly. Rates always come from JSON.
 - One expense/receipt per draft; no multi-currency, advances, per diem, travel segments, or partial dates.
 - Duplicate checks cover saved local drafts only. Different legitimate receipts with identical visible

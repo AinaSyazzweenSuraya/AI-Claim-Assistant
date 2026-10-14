@@ -14,6 +14,11 @@ def create_vercel_app(root: Path | None = None):
         raise ValueError("Vercel requires CLAIMS_APP_MODE=private and CLAIMS_API_TOKEN")
     if not settings.database_url:
         raise ValueError("Vercel requires persistent storage: set CLAIMS_DATABASE_URL")
+    if settings.receipt_image_backend == "florence":
+        raise ValueError(
+            "Local Florence OCR runs on your computer, not in this Vercel function. "
+            "Use CLAIMS_RECEIPT_IMAGE_BACKEND=vision with a hosted vision model on Vercel."
+        )
     if settings.llm_mode == "ollama" and urlsplit(settings.llm_base_url).hostname in {
         "localhost",
         "127.0.0.1",

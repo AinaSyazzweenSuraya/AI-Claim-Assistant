@@ -357,6 +357,16 @@
         border: 1px solid var(--line);
         border-radius: 10px;
       }
+      #receiptPreview {
+        margin: 16px 0;
+      }
+      #receiptPreview img {
+        display: block;
+        max-width: 100%;
+        max-height: 320px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+      }
       .credentials {
         display: flex;
         gap: 8px;
@@ -550,8 +560,8 @@
           <hr class="divider" />
           <h2>Supporting receipt</h2>
           <p class="muted">
-            Paste your receipt text or choose a file. Image reading requires a
-            configured vision model.
+            <span id="receiptHint">Paste receipt text or choose a receipt/transaction image.
+            PNG and JPEG images up to 5 MiB are supported.</span>
           </p>
           <textarea
             id="receiptText"
@@ -573,7 +583,13 @@
               class="hidden"
             />
           </div>
+          <figure id="receiptPreview" class="hidden">
+            <img id="receiptPreviewImage" alt="Your uploaded receipt or transaction screenshot" />
+            <figcaption class="muted">Compare the extracted fields with this image.</figcaption>
+            <button id="clearImage" class="secondary" type="button">Clear image preview</button>
+          </figure>
           <div id="receiptReview" class="hidden">
+            <div id="receiptSource" class="muted"></div>
             <div class="muted" style="margin-bottom: 12px">
               Check these fields against your original receipt. Corrections
               require a new review.
@@ -648,6 +664,8 @@
       let formDirty = false;
       let receiptDirty = false;
       let pendingReceipt = false;
+      let pendingImage = false;
+      let receiptPreviewUrl = null;
 
       const fieldLabels = {
         employee_id: "Employee ID",
@@ -660,7 +678,7 @@
         amount: "Receipt amount",
         nights: "Number of nights",
         receipt: "Supporting receipt",
-        "receipt.merchant": "Receipt merchant",
+        "receipt.merchant": "Merchant or payee",
         "receipt.expense_date": "Receipt date",
         "receipt.total": "Receipt total",
         "receipt.currency": "Receipt currency",
@@ -674,11 +692,11 @@
         "receipt_number",
       ];
       const receiptLabels = {
-        merchant: "Merchant",
+        merchant: "Merchant / payee",
         expense_date: "Receipt date",
         total: "Total (RM)",
         currency: "Currency",
-        receipt_number: "Receipt number",
+        receipt_number: "Receipt / transaction reference",
       };
 
       function today() {
@@ -715,11 +733,18 @@
         ])
           $(id).classList.toggle("hidden", !visible);
       }
+      function previewReceipt(file = null) {
+        if (receiptPreviewUrl) URL.revokeObjectURL(receiptPreviewUrl);
+        receiptPreviewUrl = file ? URL.createObjectURL(file) : null;
+        if (receiptPreviewUrl) $("receiptPreviewImage").src = receiptPreviewUrl;
+        else $("receiptPreviewImage").removeAttribute("src");
+        $("receiptPreview").classList.toggle("hidden", !receiptPreviewUrl);
+      }
       $("category").addEventListener("change", category);
 
       function updateControls() {
         const saved = state?.status === "saved";
-        const dirty = formDirty || receiptDirty || pendingReceipt;
+        const dirty = formDirty || receiptDirty || pendingReceipt || pendingImage;
         document.querySelectorAll("button").forEach((button) => {
           button.disabled = busy;
         });
@@ -747,15 +772,17 @@
         $("message").disabled = busy || !connected;
         document.querySelector("#chatForm button").disabled = busy || !connected;
         document.body.setAttribute("aria-busy", String(busy));
-        $("reviewHint").textContent = pendingReceipt
-          ? "Extract your new receipt text, then review and confirm its details before saving."
-          : dirty
-            ? "Your details changed. Apply your changes and review the updated draft before saving."
-            : saved
-              ? "Your draft is saved. Export a copy or start a new claim."
-              : state?.status === "ready"
-                ? "Check the details above, then confirm to save your draft."
-                : "Complete the required details before saving a draft.";
+        $("reviewHint").textContent = pendingImage
+          ? "Your new image has not been extracted. Retry the image or clear it before saving."
+          : pendingReceipt
+            ? "Extract your new receipt text, then review and confirm its details before saving."
+            : dirty
+              ? "Your details changed. Apply your changes and review the updated draft before saving."
+              : saved
+                ? "Your draft is saved. Export a copy or start a new claim."
+                : state?.status === "ready"
+                  ? "Check the details above, then confirm to save your draft."
+                  : "Complete the required details before saving a draft.";
       }
       $("claimForm").addEventListener("input", () => {
         formDirty = true;
@@ -920,6 +947,11 @@
         });
         const receipt = state.claim.receipt;
         $("receiptReview").classList.toggle("hidden", !receipt);
+        $("receiptSource").textContent = receipt
+          ? ["model_image", "florence_ocr_text"].includes(receipt.extraction_method)
+            ? "Scanned from image. Check every field before confirming."
+            : "Extracted from text. Check every field before confirming."
+          : "";
         if (syncReceipt) {
           receiptDirty = false;
           $("receiptFields").replaceChildren();
@@ -951,7 +983,7 @@
         if (busy || !connected) return;
         if (
           (options.confirm || options.message?.trim().toLowerCase() === "confirm") &&
-          (formDirty || receiptDirty || pendingReceipt)
+          (formDirty || receiptDirty || pendingReceipt || pendingImage)
         ) {
           showError("Apply and review your pending changes before confirming the draft.");
           return;
@@ -990,11 +1022,14 @@
             succeeded("extract_receipt")
           )
             pendingReceipt = false;
+          if (options.receipt_image && succeeded("extract_receipt")) pendingImage = false;
           if (reset) {
             pendingReceipt = false;
+            pendingImage = false;
             $("conversation").replaceChildren();
             $("receiptText").value = "";
             $("receiptFile").value = "";
+            previewReceipt();
             $("message").value = "";
             bubble(
               "Assistant",
@@ -1069,21 +1104,35 @@
           return;
         }
         if (file.name.toLowerCase().endsWith(".txt")) {
+          pendingImage = false;
+          previewReceipt();
           $("receiptText").value = await file.text();
           pendingReceipt = Boolean($("receiptText").value.trim());
           updateControls();
           return;
         }
+        previewReceipt(file);
+        pendingImage = true;
+        setBusy(true);
         const reader = new FileReader();
-        reader.onload = () =>
+        reader.onload = () => {
+          setBusy(false);
           turn(
             { receipt_image: reader.result.split(",")[1] },
             "Extract my receipt image.",
           );
+        };
         reader.onerror = () => {
+          setBusy(false);
           showError("The image could not be read. Please choose it again.");
         };
         reader.readAsDataURL(file);
+      });
+      $("clearImage").addEventListener("click", () => {
+        previewReceipt();
+        $("receiptFile").value = "";
+        pendingImage = false;
+        updateControls();
       });
       $("correctReceipt").addEventListener("click", () => {
         const fields = {};
@@ -1093,8 +1142,8 @@
       });
       $("confirmEvidence").addEventListener("click", () => {
         if (!state?.claim.receipt) return;
-        if (pendingReceipt) {
-          showError("Extract your new receipt text before confirming the receipt details.");
+        if (pendingReceipt || pendingImage) {
+          showError("Extract the new receipt text or image before confirming its details.");
           return;
         }
         const altered = receiptKeys.some(
@@ -1144,6 +1193,11 @@
         try {
           const health = await api("/api/health");
           showError("");
+          $("receiptHint").textContent = health.llm_mode === "demo"
+            ? "Paste labeled receipt text in demo mode. Image scanning needs an enabled model."
+            : health.receipt_image_backend === "florence"
+              ? "Receipt and transaction images are scanned locally. PNG/JPEG up to 5 MiB."
+              : "Image scanning needs a vision-capable model. PNG/JPEG up to 5 MiB.";
           $("mode").textContent =
             health.llm_mode === "demo"
               ? "Demo mode"

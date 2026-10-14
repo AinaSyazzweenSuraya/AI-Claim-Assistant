@@ -4,6 +4,10 @@ Claim: employee_id, category, expense_date, purpose, business_expense, currency=
 distance_km/route or amount/receipt, and optional nights. Decimal values serialize as strings
 to avoid floating-point changes. Dates are ISO YYYY-MM-DD. Receipt: merchant, expense_date,
 total, currency, receipt_number, evidence_hash, confirmed, extraction_method.
+For transaction screenshots, merchant represents the visible payee and receipt_number the
+visible transaction reference. Local Florence sets extraction_method=florence_ocr_text.
+Evidence hashes use the original image bytes; image pixels and raw OCR text are not stored
+automatically. The browser image preview is temporary and is not restored with a session.
 
 AgentState: session UUID, revision, status, Claim, validation report, calculation, policy
 citations, bounded last-20-message history, optional draft UUID. Draft: UUID, session UUID,

@@ -31,6 +31,12 @@ receipt images. Use pasted receipt text, or select a compatible vision model sep
 (e.g. a locally installed Ollama vision model supporting the OpenAI-compatible image format).
 Image extraction is optional and must be evaluated on your receipts before use.
 
+For receipt photos and transaction screenshots with a text-only model, use the optional
+[free local Florence-2 OCR setup](docs/florence-receipts.md). It reads the image first, then
+the existing text model proposes receipt fields for user review. Install with
+`uv sync --extra florence` and set `CLAIMS_RECEIPT_IMAGE_BACKEND=florence` locally.
+This OCR backend runs on your computer; the default Vercel install remains lightweight.
+
 An optional HTTPS OpenAI-compatible endpoint is also supported with `CLAIMS_LLM_MODE=openai`,
 `CLAIMS_LLM_BASE_URL`, `CLAIMS_LLM_MODEL`, and `CLAIMS_LLM_API_KEY`. Hosted providers may charge.
 Model failures are reported; the app never silently switches from AI to demo mode.

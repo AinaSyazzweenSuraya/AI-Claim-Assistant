@@ -77,7 +77,12 @@ def create_app(settings: Settings | None = None, *, public_https: bool = False) 
                 raise ValueError("Stale policy index")
         except (ValueError, OSError, KeyError):
             raise HTTPException(503, "Run claims ingest to refresh policy search") from None
-        return {"status": "ok", "llm_mode": settings.llm_mode, "fictional_policy": True}
+        return {
+            "status": "ok",
+            "llm_mode": settings.llm_mode,
+            "fictional_policy": True,
+            "receipt_image_backend": settings.receipt_image_backend,
+        }
 
     @app.post("/api/sessions", response_model=AgentState, dependencies=[Depends(authorize)])
     def create_session():

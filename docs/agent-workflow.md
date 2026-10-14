@@ -2,7 +2,8 @@
 
 1. Collect supplied fields; never invent a missing value. Explicit `business` or a checked
    form box supplies the business assertion. Personal expenses are rejected.
-2. Propose receipt fields from text or a supported vision model. Show them to the user.
+2. Propose receipt fields from text, a supported vision model, or local Florence OCR followed
+   by a text model. Show the extracted merchant/payee, date, total, currency, and reference.
    Corrections/replacements clear evidence confirmation. Confirmation is a separate action.
 3. Validate category, required fields, date, deadline, currency, and evidence matches.
 4. Retrieve applicable policy sections and calculate deterministically.

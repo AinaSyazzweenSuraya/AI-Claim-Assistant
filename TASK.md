@@ -17,6 +17,9 @@
 - [x] Review every tracked file; repair all static UI encoding, pending-edit handling, Windows timezone support, parser ambiguity, and saved-session rollback
 - [x] Verify the review with 79 tests including PostgreSQL, 17 scenarios, and desktop/mobile browser checks (see docs/review-findings.md)
 - [x] Fix deployed chat failure feedback, require authenticated connection before claims, and handle Vercel HTTPS proxy origin checks; verify 82 tests and browser failure/reconnection cases
+- [x] Add optional local Florence-2 OCR for receipt/transaction images, original-image hashes, preview/review, strict image limits, and CLI diagnostics
+- [x] Verify Florence integration with 105 tests, 17 scenarios, browser preview/failure guards, native CPU imports, and default lightweight imports
+- [ ] Verify actual Florence OCR accuracy on the user's computer; model download is blocked by the cloud network proxy
 - [ ] Verify live Vercel deployment after user configures the hosted database and access token
 - [ ] Live free local-model verification (requires accessible Ollama/model download)
 - [ ] Vision quality evaluation with selected vision model (optional)

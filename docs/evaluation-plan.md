@@ -17,3 +17,12 @@ success, hallucinated fields, and policy citation correctness. Include prompt in
 in receipts and requests. Target zero unsupported approvals/saves and zero invented amounts.
 Evaluate vision against manually labeled fictional images before enabling it for real receipts.
 Provider and OCR quality depend on the selected model; deterministic evaluations do not prove them.
+
+The optional Florence path has mocked integration tests for image decoding, pixel/byte limits,
+EXIF orientation, native model loading options, OCR task/output limits, hash preservation,
+required-field extraction/review, retrieved citations, and complete draft saving. These prove
+control flow, not real OCR quality. Separately run `claims ocr PATH` on manually labeled
+receipt photos and transaction screenshots; record model checkpoint, package versions,
+CPU/GPU, elapsed time, exact merchant/payee/date/total/currency/reference accuracy, and missing
+or invented values. Include blur, cropped totals, multiple dates/currencies, and printed
+instruction attacks. Every OCR-extracted record must require explicit user confirmation.

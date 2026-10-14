@@ -55,6 +55,11 @@ also requires a compatible vision model. Provider quality and credentials are no
 by the local deployment tests. Model requests are capped at 10 seconds per round on Vercel,
 and the app has at most four tool rounds. A slow or unavailable provider reports a failure.
 
+Keep `CLAIMS_RECEIPT_IMAGE_BACKEND=vision` (the default) on Vercel. The optional Florence-2
+backend runs locally with a text LLM; its PyTorch runtime and weights are not hosted by this
+function. Setting `florence` on Vercel fails startup with configuration guidance. See the
+[local Florence guide](florence-receipts.md) for the free computer-based image-scanning flow.
+
 ## Import and deploy
 
 1. In Vercel, choose Add New → Project and import `AinaSyazzweenSuraya/AI-Claim-Assistant`.
