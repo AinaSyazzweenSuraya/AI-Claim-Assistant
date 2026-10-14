@@ -80,6 +80,8 @@ def create_app(settings: Settings | None = None, *, public_https: bool = False) 
         return {
             "status": "ok",
             "llm_mode": settings.llm_mode,
+            "llm_model": settings.llm_model,
+            "llm_timeout_seconds": settings.llm_timeout,
             "fictional_policy": True,
             "receipt_image_backend": settings.receipt_image_backend,
         }

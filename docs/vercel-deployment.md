@@ -112,6 +112,15 @@ The included rules are fictional. The app creates drafts only; it does not appro
   The Vercel adapter compares the public HTTPS origin even when the internal proxy forwards
   HTTP. Other hosts and origins remain blocked; forwarded headers alone cannot bypass this.
 - Model unavailable: check provider endpoint, model ID, key, and tool-call support.
+  After redeploying, retry extraction and use the specific error: HTTP 401 indicates a
+  rejected model key; HTTP 403 denied access; HTTP 404 a missing endpoint/model; HTTP 400/422
+  an unsupported request; HTTP 413 an oversized request; HTTP 429 a rate limit or quota;
+  HTTP 5xx a provider failure. Known model-retirement and JSON/tool-generation errors are
+  identified separately. A timeout message reports the configured timeout (capped at
+  10 seconds on Vercel). Provider response bodies, keys, and receipt data are never included
+  in these messages. The authenticated `/api/health` response includes `llm_model`,
+  `llm_mode`, `receipt_image_backend`, and `llm_timeout_seconds` so you can verify the active
+  deployment's configuration. Health does not test provider access or extraction quality.
 
 ## Local verification of the deployment adapter
 

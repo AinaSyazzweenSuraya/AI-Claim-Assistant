@@ -10,6 +10,43 @@ class ModelError(RuntimeError):
     pass
 
 
+def _provider_error(response: httpx.Response) -> str:
+    """Describe provider failures without exposing response bodies or credentials."""
+    status = response.status_code
+    known_codes = {
+        "model_decommissioned": "The configured model has been retired; choose an available model",
+        "model_not_found": "The configured model is unavailable or inaccessible to this API key",
+        "json_validate_failed": "The provider could not generate valid JSON receipt fields",
+        "tool_use_failed": "The provider could not generate valid agent tool calls",
+    }
+    try:
+        body = response.json()
+        error = body.get("error") if isinstance(body, dict) else None
+        code = error.get("code") if isinstance(error, dict) else None
+    except ValueError:
+        code = None
+    if isinstance(code, str) and code in known_codes:
+        return f"{known_codes[code]} (HTTP {status})"
+    messages = {
+        400: "Model provider rejected the request; check image, JSON, and tool support",
+        401: "Model provider rejected CLAIMS_LLM_API_KEY; check the provider key in Production",
+        402: "Model provider requires credits or billing access for this request",
+        403: "Model provider denied access; check API key permissions and model access",
+        404: "Model endpoint or model was not found; check the base URL and exact model ID",
+        413: "Model provider rejected the image or request size; try a smaller receipt image",
+        422: "Model provider rejected the request format; check image, JSON, and tool support",
+        429: "Model provider rate limit or quota reached; check usage before retrying",
+    }
+    message = messages.get(status)
+    if message is None:
+        message = (
+            "Model provider is unavailable; check its service status before retrying"
+            if status >= 500
+            else "Model provider request failed; check provider settings"
+        )
+    return f"{message} (HTTP {status})"
+
+
 class ModelClient:
     def __init__(self, settings: Settings):
         self.settings = settings
@@ -57,10 +94,22 @@ class ModelClient:
                 ):
                     raise ValueError("Malformed model message")
                 return message
-        except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError) as exc:
-            # Provider response bodies may include personal data or credentials.
+        except httpx.TimeoutException as exc:
             raise ModelError(
-                "Model request failed; check endpoint, model, and service logs"
+                f"Model provider timed out (timeout: {self.settings.llm_timeout:g} seconds); "
+                "try a smaller receipt image and check provider response time"
+            ) from exc
+        except httpx.HTTPStatusError as exc:
+            raise ModelError(_provider_error(exc.response)) from exc
+        except httpx.HTTPError as exc:
+            raise ModelError(
+                "Could not connect to the model provider; "
+                "check the endpoint and service availability"
+            ) from exc
+        except (ValueError, KeyError, IndexError, TypeError) as exc:
+            raise ModelError(
+                "Model provider returned an invalid response; "
+                "expected OpenAI-compatible chat output"
             ) from exc
 
     def receipt(self, instructions: str, content: str | list[dict]) -> dict:
