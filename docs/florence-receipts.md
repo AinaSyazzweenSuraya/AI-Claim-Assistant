@@ -43,11 +43,27 @@ ollama run llama3.2:3b "Say ready"
 Enter `/bye` after the response. Ollama's background server must remain running.
 If it is unavailable, run `ollama serve` in another terminal.
 
+Check that the standalone `uv` command is available:
+
+```powershell
+uv --version
+```
+
+If PowerShell cannot find `uv`, install it with WinGet:
+
+```powershell
+winget install --exact --id astral-sh.uv
+```
+
+Restart VS Code so its terminals pick up the updated PATH, then run `uv --version` again.
+An active project `.venv` is fine: use `uv` directly, rather than `python -m uv`.
+The project Python environment does not include the `uv` module.
+
 Install the optional Florence packages:
 
 ```powershell
 git pull
-python -m uv sync --frozen --extra dev --extra florence
+uv sync --frozen --extra dev --extra florence
 ```
 
 The optional packages include PyTorch, Torchvision, and Transformers. Downloads can be large;
@@ -70,7 +86,7 @@ CLAIMS_FLORENCE_DEVICE=cpu
 Before starting the app, optionally test OCR alone on your own image:
 
 ```powershell
-python -m uv run --extra florence claims ocr "C:\path\to\receipt.jpg"
+uv run --extra florence claims ocr "C:\path\to\receipt.jpg"
 ```
 
 Replace that example path with your actual PNG/JPEG. The first scan downloads the Florence
@@ -80,8 +96,8 @@ not a validated claim; check the reading against the image. It can run without a
 Start the full workflow:
 
 ```powershell
-python -m uv run --extra florence claims ingest
-python -m uv run --extra florence claims web
+uv run --extra florence claims ingest
+uv run --extra florence claims web
 ```
 
 Open the address printed by the server. Keep Ollama and the assistant running.
