@@ -82,6 +82,37 @@ with tempfile.TemporaryDirectory(prefix="claims-ui-check-") as directory:
             assert page.locator("#step3").inner_text() == "03 · Review & save"
             assert page.locator("#claimAmount").inner_text() == "Not calculated yet"
             assert page.locator("#save").is_disabled()
+            contrast = page.evaluate("""() => {
+              const rgb = value => (value.match(/[\\d.]+/g) || []).slice(0, 3).map(Number);
+              const luminance = value => rgb(value).map(c => {
+                c /= 255;
+                return c <= .04045 ? c / 12.92 : ((c + .055) / 1.055) ** 2.4;
+              }).reduce((sum, c, i) => sum + c * [.2126, .7152, .0722][i], 0);
+              const selectors = ['body', 'label[for=employee]', '#employee', '#mode',
+                '#receiptHint', '.section-kicker', '#claimForm > .primary', '#chooseReceipt'];
+              return selectors.map(selector => {
+                const element = document.querySelector(selector);
+                const foreground = luminance(getComputedStyle(element).color);
+                let parent = element;
+                let backgrounds = [];
+                while (parent) {
+                  const style = getComputedStyle(parent);
+                  backgrounds = style.backgroundImage.match(/rgb\\([^)]*\\)/g) || [];
+                  if (backgrounds.length) break;
+                  if (style.backgroundColor !== 'rgba(0, 0, 0, 0)') {
+                    backgrounds = [style.backgroundColor]; break;
+                  }
+                  parent = parent.parentElement;
+                }
+                const ratios = backgrounds.map(value => {
+                  const background = luminance(value);
+                  return (Math.max(foreground, background) + .05) /
+                    (Math.min(foreground, background) + .05);
+                });
+                return {selector, ratio: Math.min(...ratios)};
+              });
+            }""")
+            assert all(item["ratio"] >= 4.5 for item in contrast), contrast
             assert page.locator("#chooseReceipt").is_enabled()
             with page.expect_file_chooser() as chooser:
                 page.click("#chooseReceipt")
@@ -318,6 +349,7 @@ with tempfile.TemporaryDirectory(prefix="claims-ui-check-") as directory:
                 {
                     "browser_errors": errors,
                     "unicode": "correct",
+                    "text_contrast": "AA checked for key controls and labels",
                     "field_labels": "readable",
                     "mileage_save_export": "30.00",
                     "meal_cap": "30.00",

@@ -82,6 +82,10 @@ For the browser app and JSON API:
 uv run claims web
 ```
 
+The browser interface uses a dark navy and blue theme, with responsive expense/evidence
+panels, visible keyboard focus, and readable dark form controls. On small screens the panels
+stack and fields use a single column.
+
 To host the app on Vercel, follow [the Vercel deployment guide](docs/vercel-deployment.md).
 Vercel uses PostgreSQL via `CLAIMS_DATABASE_URL`; local development defaults to SQLite.
 The guide lists required variables and explains how to enable an external AI provider.
