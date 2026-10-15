@@ -42,11 +42,13 @@ def main() -> None:
             parser.exit(1, str(exc) + "\n")
         return
     if arguments.command == "web":
-        if (
-            arguments.host not in {"127.0.0.1", "localhost", "::1"}
-            and settings.app_mode != "private"
-        ):
-            parser.error("Network exposure requires private mode and CLAIMS_API_TOKEN")
+        if arguments.host not in {"127.0.0.1", "localhost", "::1"} and settings.app_mode not in {
+            "private",
+            "public",
+        }:
+            parser.error(
+                "Network exposure requires public mode, or private mode with CLAIMS_API_TOKEN"
+            )
         import uvicorn
 
         from claims_assistant.interfaces.web import create_app

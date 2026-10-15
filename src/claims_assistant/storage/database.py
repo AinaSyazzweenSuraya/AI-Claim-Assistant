@@ -10,6 +10,9 @@ SCHEMA = """
     CREATE TABLE IF NOT EXISTS sessions (
         id TEXT PRIMARY KEY, revision INTEGER NOT NULL, payload TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS session_owners (
+        session_id TEXT PRIMARY KEY REFERENCES sessions(id), owner_hash TEXT NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS drafts (
         id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id),
         receipt_hash TEXT UNIQUE, receipt_fingerprint TEXT UNIQUE,

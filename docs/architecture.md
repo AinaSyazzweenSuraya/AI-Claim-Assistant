@@ -9,7 +9,7 @@ flowchart LR
   T --> R[Version-filtered policy retrieval]
   T --> V[Python validation and Decimal calculations]
   T --> E[Receipt extraction proposals]
-  A --> DB[(SQLite sessions and local drafts)]
+  A --> DB[(SQLite local / PostgreSQL hosted sessions and drafts)]
   P[Markdown policies + manifest + JSON rules] --> R
   P --> V
 ```
@@ -44,7 +44,15 @@ assistant. State/history survive process restarts. Live model/server processes m
 
 Vercel uses the same repository operations against PostgreSQL configured through
 CLAIMS_DATABASE_URL. User records persist outside the function; only the policy index is
-rebuilt in /tmp on a cold start. Cloud startup requires private mode and a service token.
+rebuilt in /tmp on a cold start. Cloud startup accepts public mode without a service token,
+or private mode with one. Demo app mode remains loopback-only.
 
-This is standalone: exported JSON is a local artifact. Identity, production authentication,
-and organization-approved rules must be added before deployment for multiple employees.
+Public mode generates an anonymous HttpOnly visitor cookie, Secure on HTTPS/Vercel and
+SameSite=Strict. Only its SHA-256 hash is stored in session_owners, atomically with each new
+session. All public session reads/chat mutations/draft exports require matching ownership;
+unowned old records stay private. This works across function instances without a signing
+key or in-memory identity map. Private mode retains shared-token access to all records.
+
+This is standalone: exported JSON is a downloadable artifact. Anonymous browser workspaces
+are not verified employee identities. Employee login, operational controls, and approved
+rules remain necessary for real organizational use.

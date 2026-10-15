@@ -1,8 +1,12 @@
 # Limitations
 
 - Fictional single-version sample policy, MYR only; no production policy approval.
-- Single-user app. Shared service tokens do not isolate employee data. No SSO, role authorization,
-  encrypted database, organizational audit/retention automation, or production rate limiting.
+- Public mode isolates anonymous browser workspaces using a 30-day visitor cookie, not
+  employee identities. Clearing/expiring cookies or changing browser/domain loses access;
+  shared devices share a workspace. Private shared-token access does not isolate employees.
+  No SSO, role authorization, application-level database encryption, organizational
+  audit/retention automation, account recovery, or production rate limiting. Public users
+  share model/hosting quotas; use fictional data for testing.
 - Saves local drafts only. No Spring Boot connection, claim submission, approval, or payment.
 - Demo parser is limited and is not an LLM. Ollama must be installed/running and its model downloaded.
   Use plain decimal numbers without thousands separators in demo chat; use the structured
@@ -24,7 +28,8 @@
 - Duplicate checks cover saved local drafts only. Different legitimate receipts with identical visible
   merchant/date/total/number can be flagged; a human must resolve such cases.
 - Business-purpose truth is a user assertion. A model cannot determine whether a trip really qualifies.
-- Personal data persists in SQLite history and drafts until you delete it; raw uploads are not retained.
+- Data persists in SQLite/PostgreSQL history and drafts until you delete it; expiring a
+  visitor cookie does not delete records. Raw uploads are not retained.
 - Installed wheels need CLAIMS_ROOT pointing to a checkout containing prompts and data.
-- Vercel requires external PostgreSQL storage and private-mode access settings. It cannot
+- Vercel requires external PostgreSQL storage and public or private app mode. It cannot
   run local Ollama. A live cloud database/deployment must be checked after configuration.

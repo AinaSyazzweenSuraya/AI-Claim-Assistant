@@ -38,7 +38,10 @@ receipt_image (base64 PNG/JPEG, ≤5 MiB), receipt_ocr_text (browser OCR text),
 receipt_fields (visible corrections), confirm_receipt,
 confirm, session_id, expected_revision. Receipt text is limited to 20,000 characters.
 Confirmation requires a prior session and displayed revision. All API endpoints require the
-configured bearer token when present. Private mode requires a token. HTTP 401=authentication,
+configured bearer token in private mode (required) or local demo mode when set. Public mode
+does not require/use that token: retain its HttpOnly visitor cookie for session/chat/draft
+access. A missing or different owner receives the same 404 as an unknown record; clients
+cannot set owner_hash in JSON. HTTP 401=authentication,
 403=origin/loopback restriction, 404=unknown record, 409=revision/duplicate conflict,
 422=malformed request, 503=policy-index readiness failure. Tool failures remain structured
 in a normal chat response so the user can correct fields or retry a service after diagnosis.

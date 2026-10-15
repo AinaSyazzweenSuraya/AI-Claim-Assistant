@@ -169,5 +169,6 @@ real OCR accuracy. Test clear/blurred photos, screenshots, faded printing, diffe
 and conflicting totals against manually checked fields before using real staff evidence.
 
 The project's policy retrieval remains the existing offline lexical index; this change does
-not add semantic embeddings. All policies remain fictional and the app remains single-user
-with shared-token access. Real staff deployment needs approved policies and per-user access.
+not add semantic embeddings. All policies remain fictional. Public mode separates anonymous
+browser workspaces; private mode has shared-token access. Real staff deployment needs
+approved policies and verified employee access.

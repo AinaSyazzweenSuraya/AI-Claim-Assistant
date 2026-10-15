@@ -148,9 +148,14 @@ class Assistant:
         confirm_receipt: bool = False,
         confirm: bool = False,
         expected_revision: int | None = None,
+        owner_hash: str | None = None,
     ) -> AgentResponse:
         today = self.today or datetime.now(ZoneInfo("Asia/Kuala_Lumpur")).date()
-        state = self.repository.load(session_id) if session_id else self.repository.create()
+        state = (
+            self.repository.load(session_id, owner_hash)
+            if session_id
+            else self.repository.create(owner_hash)
+        )
         previous_revision = state.revision
         if expected_revision is not None and previous_revision != expected_revision:
             raise ConflictError("Session changed; reload before retrying")

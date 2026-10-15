@@ -137,3 +137,44 @@ def test_vercel_cold_start_uses_external_storage(postgres_settings, monkeypatch)
         assert (
             response.status_code == 200 and response.json()["session_id"] == created["session_id"]
         )
+
+
+def test_public_vercel_postgres_ownership_survives_cold_start(postgres_settings, monkeypatch):
+    postgres_settings.app_mode, postgres_settings.api_token = "public", ""
+    monkeypatch.setattr(
+        "claims_assistant.interfaces.vercel.Settings", lambda **_: postgres_settings
+    )
+    monkeypatch.setenv("VERCEL_URL", "claims-test.vercel.app")
+    url = "https://claims-test.vercel.app"
+    with TestClient(create_vercel_app(), base_url=url) as owner:
+        state = owner.post(
+            "/api/chat", json={"fields": mileage().model_dump(mode="json", exclude={"receipt"})}
+        ).json()["state"]
+        saved = owner.post(
+            "/api/chat",
+            json={
+                "session_id": state["session_id"],
+                "expected_revision": state["revision"],
+                "confirm": True,
+            },
+        ).json()["state"]
+        visitor = owner.cookies["claims_visitor"]
+    (postgres_settings.runtime / "vector_index/policies.json").unlink()
+    second_app = create_vercel_app()
+    with (
+        TestClient(second_app, base_url=url) as resumed,
+        TestClient(second_app, base_url=url) as other,
+    ):
+        resumed.cookies.set("claims_visitor", visitor)
+        session_url = "/api/sessions/" + saved["session_id"]
+        draft_url = "/api/drafts/" + saved["draft_id"]
+        assert resumed.get(session_url).json()["status"] == "saved"
+        assert resumed.get(draft_url).json()["calculation"]["amount"] == "15.00"
+        assert other.get(session_url).status_code == 404
+        assert other.get(draft_url).status_code == 404
+        assert (
+            other.post(
+                "/api/chat", json={"session_id": saved["session_id"], "message": "new"}
+            ).status_code
+            == 404
+        )

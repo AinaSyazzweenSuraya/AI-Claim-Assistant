@@ -1,9 +1,12 @@
 import hmac
+import re
+import secrets
+from hashlib import sha256
 from pathlib import Path
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
@@ -15,6 +18,8 @@ from claims_assistant.config import Settings
 from claims_assistant.rag.ingest import source_digest
 from claims_assistant.rag.vector_store import VectorStore
 from claims_assistant.storage.repository import ConflictError
+
+VISITOR_COOKIE = "claims_visitor"
 
 
 class ChatRequest(BaseModel):
@@ -43,8 +48,10 @@ def create_app(settings: Settings | None = None, *, public_https: bool = False) 
     )
 
     def authorize(authorization: Annotated[str | None, Header()] = None) -> None:
-        if settings.api_token and not hmac.compare_digest(
-            authorization or "", "Bearer " + settings.api_token
+        if (
+            settings.app_mode != "public"
+            and settings.api_token
+            and not hmac.compare_digest(authorization or "", "Bearer " + settings.api_token)
         ):
             raise HTTPException(401, "A valid service token is required")
 
@@ -66,7 +73,27 @@ def create_app(settings: Settings | None = None, *, public_https: bool = False) 
         public_url = request.base_url.replace(scheme="https") if public_https else request.base_url
         if origin and origin != str(public_url).rstrip("/"):
             return JSONResponse({"detail": "Cross-origin requests are disabled"}, status_code=403)
+        # An anonymous browser capability, not an employee identity. Only its hash
+        # is persisted; knowing a session/draft UUID never grants public access.
+        visitor = None
+        request.state.owner_hash = None
+        if settings.app_mode == "public" and (
+            request.url.path == "/" or request.url.path.startswith("/api/")
+        ):
+            visitor = request.cookies.get(VISITOR_COOKIE, "")
+            if not re.fullmatch(r"[A-Za-z0-9_-]{43}", visitor):
+                visitor = secrets.token_urlsafe(32)
+            request.state.owner_hash = sha256(visitor.encode("ascii")).hexdigest()
         response = await call_next(request)
+        if visitor is not None and visitor != request.cookies.get(VISITOR_COOKIE):
+            response.set_cookie(
+                VISITOR_COOKIE,
+                visitor,
+                max_age=60 * 60 * 24 * 30,
+                httponly=True,
+                secure=public_https or request.url.scheme == "https",
+                samesite="strict",
+            )
         response.headers["Cache-Control"] = (
             "public, max-age=86400"
             if request.url.path.startswith("/assets/ocr/6.0.1/")
@@ -90,6 +117,7 @@ def create_app(settings: Settings | None = None, *, public_https: bool = False) 
             raise HTTPException(503, "Run claims ingest to refresh policy search") from None
         return {
             "status": "ok",
+            "app_mode": settings.app_mode,
             "llm_mode": settings.llm_mode,
             "llm_model": settings.llm_model,
             "llm_timeout_seconds": settings.llm_timeout,
@@ -98,20 +126,20 @@ def create_app(settings: Settings | None = None, *, public_https: bool = False) 
         }
 
     @app.post("/api/sessions", response_model=AgentState, dependencies=[Depends(authorize)])
-    def create_session():
-        return assistant.repository.create()
+    def create_session(request: Request):
+        return assistant.repository.create(request.state.owner_hash)
 
     @app.get(
         "/api/sessions/{session_id}", response_model=AgentState, dependencies=[Depends(authorize)]
     )
-    def session(session_id: UUID):
+    def session(session_id: UUID, request: Request):
         try:
-            return assistant.repository.load(str(session_id))
+            return assistant.repository.load(str(session_id), request.state.owner_hash)
         except KeyError:
             raise HTTPException(404, "Session not found") from None
 
     @app.post("/api/chat", response_model=AgentResponse, dependencies=[Depends(authorize)])
-    def chat(body: ChatRequest):
+    def chat(body: ChatRequest, request: Request):
         if (body.confirm or body.message.strip().casefold() == "confirm") and (
             body.session_id is None or body.expected_revision is None
         ):
@@ -119,7 +147,9 @@ def create_app(settings: Settings | None = None, *, public_https: bool = False) 
         options = body.model_dump(exclude={"session_id"})
         try:
             return assistant.respond(
-                session_id=str(body.session_id) if body.session_id else None, **options
+                session_id=str(body.session_id) if body.session_id else None,
+                owner_hash=request.state.owner_hash,
+                **options,
             )
         except KeyError:
             raise HTTPException(404, "Session not found") from None
@@ -127,9 +157,9 @@ def create_app(settings: Settings | None = None, *, public_https: bool = False) 
             raise HTTPException(409, str(exc)) from None
 
     @app.get("/api/drafts/{draft_id}", dependencies=[Depends(authorize)])
-    def draft(draft_id: UUID):
+    def draft(draft_id: UUID, request: Request):
         try:
-            return assistant.repository.draft(str(draft_id))
+            return assistant.repository.draft(str(draft_id), request.state.owner_hash)
         except KeyError:
             raise HTTPException(404, "Draft not found") from None
 

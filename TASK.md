@@ -24,9 +24,11 @@
 - [x] Add self-hosted browser Tesseract OCR for Vercel/text-only models, text-only requests, progress/retry, untrusted OCR-text hashing, and review/save guards; update README, setup, architecture, contracts, data/workflow, and evaluation docs
 - [x] Verify 139 tests including PostgreSQL, 17 scenarios, real PNG/JPEG OCR and failure cases through the HTTPS Vercel adapter, and an official Vercel Python 3.12 build with generated-bundle asset/auth/review/save/cold-start checks
 - [x] Refresh the interface with a dark blue theme, responsive panels, clearer evidence/review sections, dark native inputs, visible focus states, and browser contrast/layout/claim/upload checks
+- [x] Add explicit public no-token mode with anonymous browser ownership on sessions, chat updates, and draft exports; preserve private access and document Vercel settings
+- [x] Verify public access with 146 tests including PostgreSQL ownership/cold-start checks, 17 workflow cases, and real browser upload/OCR/review/save/export in public and private HTTPS Vercel-adapter flows
 - [ ] Verify live Groq extraction and the user's Production Vercel browser-OCR deployment after setting the new variables
 - [ ] Verify actual Florence OCR accuracy on the user's computer; model download is blocked by the cloud network proxy
-- [ ] Verify live Vercel deployment after user configures the hosted database and access token
+- [ ] Verify live Vercel deployment after user configures the hosted database and public/private app mode
 - [ ] Live free local-model verification (requires accessible Ollama/model download)
 - [ ] Vision quality evaluation with selected vision model (optional)
 - [ ] Replace fictional policies with approved real policies (before real use)

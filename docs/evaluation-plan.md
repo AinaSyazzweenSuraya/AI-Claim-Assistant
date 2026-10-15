@@ -38,3 +38,11 @@ source exclusivity, bounded text, asset hashes, duplicates, and server-image rej
 These checks prove integration on generated clear English receipts. Live Groq output,
 real staff-image quality, free-tier capacity, and the user's actual Vercel deployment remain
 separate acceptance checks. See [the browser OCR guide](browser-ocr.md).
+
+Public access: test two independent cookie jars for session creation, read/update isolation,
+draft save/export isolation, blocked legacy records, cookie attributes, identity spoofing,
+cross-origin rejection, and persistence after a Vercel/PostgreSQL cold start. Existing
+private-token tests must still pass. Run `CLAIMS_UI_TEST_APP_MODE=public` with
+`scripts/check_web_ui.py` for automatic connection, real browser cookies, reload/export,
+and separate browser contexts. Run `CLAIMS_OCR_TEST_APP_MODE=public` with
+`scripts/check_browser_ocr.py` for no-token HTTPS/Vercel/PostgreSQL OCR integration.

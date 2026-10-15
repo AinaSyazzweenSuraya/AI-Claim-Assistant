@@ -43,6 +43,18 @@ def test_vercel_adapter_sets_https_public_origin(settings, monkeypatch):
     factory.assert_called_once_with(settings, public_https=True)
 
 
+def test_vercel_public_mode_requires_database_but_no_token(settings, monkeypatch):
+    settings.app_mode, settings.api_token = "public", ""
+    monkeypatch.setattr("claims_assistant.interfaces.vercel.Settings", lambda **_: settings)
+    with pytest.raises(ValueError, match="persistent storage"):
+        create_vercel_app()
+    settings.database_url = SecretStr("postgresql://example.invalid/claims")
+    factory = Mock()
+    monkeypatch.setattr("claims_assistant.interfaces.vercel.create_app", factory)
+    assert create_vercel_app() is factory.return_value
+    factory.assert_called_once_with(settings, public_https=True)
+
+
 def test_vercel_rejects_local_florence_before_loading_models(settings, monkeypatch):
     settings.app_mode, settings.api_token = "private", "test-only-token"
     settings.database_url = SecretStr("postgresql://example.invalid/claims")

@@ -1,5 +1,13 @@
 # Try the assistant as a user
 
+Public website access was checked on 15 October 2026 (Asia/Kuala_Lumpur): 146 tests,
+17 workflow cases, and real browser OCR/save/export checks passed with PostgreSQL and the
+HTTPS Vercel adapter. Public mode opens without Connect; each browser has a separate
+workspace. Refresh should restore your claim. A second browser/incognito window should
+start empty and cannot read/update/export the first browser's records, even with its UUIDs.
+Export drafts before clearing site data; this is anonymous access, not an employee account.
+Your actual deployed site and live Groq key still need checking after redeployment.
+
 The standalone demo workflow was rechecked on 13 October 2026 (Asia/Kuala_Lumpur):
 79 automated tests including PostgreSQL, 17 evaluation cases, and desktop/mobile browser
 checks passed. The earlier 18 live HTTP user-flow checks also passed with temporary storage.

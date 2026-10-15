@@ -23,20 +23,20 @@ Set these in the Vercel project's **Production** variables, and Preview if neede
 
 | Variable | Value |
 | --- | --- |
-| `CLAIMS_APP_MODE` | `private` |
+| `CLAIMS_APP_MODE` | `public` (or `private` for restricted access) |
 | `CLAIMS_RECEIPT_IMAGE_BACKEND` | `browser` |
 | `CLAIMS_LLM_MODE` | `openai` (this names the compatible API protocol, including Groq) |
 | `CLAIMS_LLM_BASE_URL` | `https://api.groq.com/openai/v1` |
 | `CLAIMS_LLM_MODEL` | `openai/gpt-oss-20b`, if available to your key |
 | `CLAIMS_LLM_API_KEY` | Your Groq key, entered securely |
-| `CLAIMS_API_TOKEN` | Your own assistant access token, entered securely |
+| `CLAIMS_API_TOKEN` | Omit for public mode; your assistant access token for private mode |
 | `CLAIMS_DATABASE_URL` | Your persistent PostgreSQL URL, entered securely |
 
 Keep existing working secret values; do not replace them with the descriptions above.
-`private` belongs to APP_MODE, not LLM_MODE. No `CLAIMS_FLORENCE_DEVICE` or OCR-provider key
+`public`/`private` belong to APP_MODE, not LLM_MODE. No `CLAIMS_FLORENCE_DEVICE` or OCR-provider key
 is required. Do not configure a local Ollama URL for Vercel. Deploy the latest `main` after
-saving variables. Connect using the assistant token on the website; do not enter the Groq
-key in the website's access-token field.
+saving variables. Public mode connects automatically. Private mode needs the assistant
+token on the website; do not enter the Groq key in the website's access-token field.
 
 The FastAPI app serves `/assets/ocr/` itself. `vercel.json` explicitly includes the static
 files; the Python wheel also contains them. No npm install or Node build command is needed

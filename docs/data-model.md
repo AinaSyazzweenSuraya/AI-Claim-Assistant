@@ -22,6 +22,13 @@ unique raw evidence hash and canonical merchant/date/total/currency/number finge
 JSON payload, and UTC created_at. No raw image/text uploads are stored automatically.
 Canonical hashes are duplicate heuristics, not proof of receipt identity or authenticity.
 
+Public browser ownership uses a separate session_owners table: session_id (primary/foreign
+key) and owner_hash (SHA-256 of a random 256-bit visitor cookie). Session creation and owner
+binding commit together. Ownership is checked before loading or modifying a session, or
+exporting its drafts. Owner secrets/hashes are excluded from state and exports. Startup
+adds this table without changing existing records; unowned records remain inaccessible in
+public mode. Private shared-token mode retains access to all records.
+
 On Vercel the same tables and JSON payloads are stored in PostgreSQL, selected using
 CLAIMS_DATABASE_URL. Revision checks, unique evidence constraints, and atomic draft/session
 transactions work across function instances. Database URLs are secret configuration and

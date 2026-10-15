@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     )
     root: Path = Path(__file__).resolve().parents[2]
     runtime_dir: Path | None = None
-    app_mode: Literal["demo", "private"] = "demo"
+    app_mode: Literal["demo", "private", "public"] = "demo"
     api_token: str = ""
     database_url: SecretStr | None = None
     allowed_hosts: list[str] = ["127.0.0.1", "localhost", "[::1]"]

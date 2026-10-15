@@ -1,6 +1,7 @@
 # Requirements and acceptance criteria
 
-Scope: standalone, single-user allowance preparation in MYR. Fictional policy DEMO-ALLOWANCE
+Scope: standalone allowance preparation in MYR, with local, private, and public test access.
+Fictional policy DEMO-ALLOWANCE
 v1.0, effective 2026-01-01. No Spring Boot integration, external submission, payment, or approval.
 
 Categories: mileage, meal, parking, lodging. Common fields: employee ID, category, expense date,
@@ -20,6 +21,12 @@ Changing claim or evidence requires review again. Saved drafts are immutable in 
 The default workflow must run without credentials or network model calls. Ollama provides
 optional local AI with no per-request payment; real provider runs are evaluated separately.
 Model or policy failures must be visible and must not save a draft.
+
+Public web mode must open without a service token and isolate each anonymous browser's
+sessions, updates, and saved-draft exports, including across PostgreSQL/Vercel cold starts.
+Knowing a record UUID must not bypass ownership. Private mode still requires a configured
+shared token; local demo app mode stays loopback-only. Public access does not remove the
+model-provider key or persistent-database requirements. Browser identity is not staff login.
 
 Browser image OCR must work on Vercel with a text-only model: the browser reads one PNG/JPEG,
 downloads OCR assets from this app, and sends only bounded OCR text to the API. No OCR API

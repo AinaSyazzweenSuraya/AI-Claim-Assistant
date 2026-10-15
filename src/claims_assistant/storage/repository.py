@@ -20,7 +20,7 @@ class Repository:
             connection.execute("SELECT 1")
         connection.close()
 
-    def create(self) -> AgentState:
+    def create(self, owner_hash: str | None = None) -> AgentState:
         state = AgentState()
         connection = connect(self.path, self.database_url)
         try:
@@ -29,16 +29,27 @@ class Repository:
                     "INSERT INTO sessions VALUES (?, ?, ?)",
                     (state.session_id, state.revision, state.model_dump_json()),
                 )
+                if owner_hash is not None:
+                    connection.execute(
+                        "INSERT INTO session_owners (session_id, owner_hash) VALUES (?, ?)",
+                        (state.session_id, owner_hash),
+                    )
         finally:
             connection.close()
         return state
 
-    def load(self, session_id: str) -> AgentState:
+    def load(self, session_id: str, owner_hash: str | None = None) -> AgentState:
         connection = connect(self.path, self.database_url)
         try:
-            row = connection.execute(
-                "SELECT payload FROM sessions WHERE id=?", (session_id,)
-            ).fetchone()
+            query = "SELECT payload FROM sessions WHERE id=?"
+            parameters = (session_id,)
+            if owner_hash is not None:
+                query += (
+                    " AND EXISTS (SELECT 1 FROM session_owners"
+                    " WHERE session_id=sessions.id AND owner_hash=?)"
+                )
+                parameters += (owner_hash,)
+            row = connection.execute(query, parameters).fetchone()
         finally:
             connection.close()
         if not row:
@@ -94,12 +105,18 @@ class Repository:
             connection.close()
         state.revision = next_state.revision
 
-    def draft(self, draft_id: str) -> dict:
+    def draft(self, draft_id: str, owner_hash: str | None = None) -> dict:
         connection = connect(self.path, self.database_url)
         try:
-            row = connection.execute(
-                "SELECT payload FROM drafts WHERE id=?", (draft_id,)
-            ).fetchone()
+            query = "SELECT payload FROM drafts WHERE id=?"
+            parameters = (draft_id,)
+            if owner_hash is not None:
+                query += (
+                    " AND EXISTS (SELECT 1 FROM session_owners"
+                    " WHERE session_id=drafts.session_id AND owner_hash=?)"
+                )
+                parameters += (owner_hash,)
+            row = connection.execute(query, parameters).fetchone()
         finally:
             connection.close()
         if not row:

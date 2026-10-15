@@ -35,6 +35,9 @@ TODAY = datetime.now(ZoneInfo("Asia/Kuala_Lumpur")).date().isoformat()
 
 
 def main() -> None:
+    app_mode = os.getenv("CLAIMS_OCR_TEST_APP_MODE", "private")
+    if app_mode not in {"private", "public"}:
+        raise SystemExit("CLAIMS_OCR_TEST_APP_MODE must be private or public")
     database_url = os.environ.get("CLAIMS_TEST_DATABASE_URL")
     if not database_url:
         raise SystemExit("Set CLAIMS_TEST_DATABASE_URL to a disposable PostgreSQL database")
@@ -118,8 +121,8 @@ def main() -> None:
             origin = f"https://127.0.0.1:{port}"
             env = {
                 **os.environ,
-                "CLAIMS_APP_MODE": "private",
-                "CLAIMS_API_TOKEN": "browser-ocr-test-token",
+                "CLAIMS_APP_MODE": app_mode,
+                "CLAIMS_API_TOKEN": "browser-ocr-test-token" if app_mode == "private" else "",
                 "CLAIMS_DATABASE_URL": isolated_url,
                 "CLAIMS_RUNTIME_DIR": directory,
                 "CLAIMS_ROOT": str(ROOT),
@@ -143,7 +146,9 @@ def main() -> None:
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
-            headers = {"Authorization": "Bearer browser-ocr-test-token"}
+            headers = (
+                {"Authorization": "Bearer browser-ocr-test-token"} if app_mode == "private" else {}
+            )
             with httpx.Client(
                 verify=ssl.create_default_context(cafile=str(cert)), trust_env=False
             ) as client:
@@ -209,9 +214,12 @@ def main() -> None:
                 page.set_default_timeout(45000)
                 page.on("pageerror", lambda error: errors.append(str(error)))
                 page.goto(origin, wait_until="networkidle")
-                assert page.locator("#chooseReceipt").is_disabled()
-                page.fill("#token", "browser-ocr-test-token")
-                page.click("#connect")
+                if app_mode == "private":
+                    assert page.locator("#chooseReceipt").is_disabled()
+                    page.fill("#token", "browser-ocr-test-token")
+                    page.click("#connect")
+                else:
+                    assert page.locator("#credentials").is_hidden()
                 page.wait_for_function("!document.querySelector('#chooseReceipt').disabled")
                 page.fill("#employee", "OCR001")
                 page.select_option("#category", "meal")
@@ -281,14 +289,18 @@ def main() -> None:
                     "document.querySelector('#status').textContent === 'Draft saved'"
                 )
                 page.reload(wait_until="networkidle")
-                page.fill("#token", "browser-ocr-test-token")
-                page.click("#connect")
+                if app_mode == "private":
+                    page.fill("#token", "browser-ocr-test-token")
+                    page.click("#connect")
                 page.wait_for_function(
                     "document.querySelector('#status').textContent === 'Draft saved'"
                 )
                 session_id = page.evaluate("localStorage.getItem('claimSession')")
+                cookies = {cookie["name"]: cookie["value"] for cookie in context.cookies()}
                 with httpx.Client(
-                    verify=ssl.create_default_context(cafile=str(cert)), trust_env=False
+                    verify=ssl.create_default_context(cafile=str(cert)),
+                    trust_env=False,
+                    cookies=cookies,
                 ) as client:
                     persisted = client.get(
                         origin + "/api/sessions/" + session_id, headers=headers
@@ -304,6 +316,21 @@ def main() -> None:
                         origin + "/api/drafts/" + persisted["draft_id"], headers=headers
                     ).json()
                     assert draft["submitted"] is False and draft["status"] == "draft"
+                if app_mode == "public":
+                    other = browser.new_context()
+                    other_page = other.new_page()
+                    other_page.goto(origin, wait_until="networkidle")
+                    # Use Chromium's certificate-pinned connection, as for the UI,
+                    # rather than Playwright's separate Node HTTP client.
+                    for path in [
+                        "/api/sessions/" + session_id,
+                        "/api/drafts/" + persisted["draft_id"],
+                    ]:
+                        assert (
+                            other_page.evaluate("async path => (await fetch(path)).status", path)
+                            == 404
+                        )
+                    other.close()
                 page.click("#new")
                 page.wait_for_function("!document.querySelector('#chooseReceipt').disabled")
                 upload(temporary / "receipt.jpg")
@@ -324,6 +351,8 @@ def main() -> None:
                 json.dumps(
                     {
                         "real_tesseract_png_jpeg": "passed",
+                        "app_mode": app_mode,
+                        "public_visitor_isolation": "passed" if app_mode == "public" else "not run",
                         "model_transport": "text only",
                         "external_browser_requests": 0,
                         "blank_and_corrupt_images": "blocked",

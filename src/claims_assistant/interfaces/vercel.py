@@ -10,8 +10,10 @@ from claims_assistant.rag.ingest import ingest
 def create_vercel_app(root: Path | None = None):
     root = root or Path(__file__).resolve().parents[3]
     settings = Settings(root=root, runtime_dir=Path("/tmp/claims-assistant"))
-    if settings.app_mode != "private" or not settings.api_token:
-        raise ValueError("Vercel requires CLAIMS_APP_MODE=private and CLAIMS_API_TOKEN")
+    if settings.app_mode not in {"private", "public"}:
+        raise ValueError("Vercel requires CLAIMS_APP_MODE=public or private")
+    if settings.app_mode == "private" and not settings.api_token:
+        raise ValueError("Private Vercel mode requires CLAIMS_API_TOKEN")
     if not settings.database_url:
         raise ValueError("Vercel requires persistent storage: set CLAIMS_DATABASE_URL")
     if settings.receipt_image_backend == "florence":

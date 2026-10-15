@@ -41,15 +41,17 @@ files are included in this repository and served from the same app.
 For your Groq text model on Vercel, set these non-secret variables:
 
 ```dotenv
-CLAIMS_APP_MODE=private
+CLAIMS_APP_MODE=public
 CLAIMS_RECEIPT_IMAGE_BACKEND=browser
 CLAIMS_LLM_MODE=openai
 CLAIMS_LLM_BASE_URL=https://api.groq.com/openai/v1
 CLAIMS_LLM_MODEL=openai/gpt-oss-20b
 ```
 
-Keep your actual `CLAIMS_API_TOKEN`, `CLAIMS_DATABASE_URL`, and `CLAIMS_LLM_API_KEY` securely
-configured in Vercel. Use a model available to your key, then redeploy after changing variables.
+Keep your actual `CLAIMS_DATABASE_URL` and `CLAIMS_LLM_API_KEY` securely configured in Vercel.
+Public mode opens immediately without an assistant token. For restricted access instead, set
+`CLAIMS_APP_MODE=private` and configure `CLAIMS_API_TOKEN`. Use a model available to your key,
+then redeploy after changing variables.
 Browser OCR has no inference API fee; Groq, database, and Vercel free-tier quotas still apply.
 It is English OCR for clear printed receipts, not guaranteed document understanding.
 The first scan downloads several MB of OCR assets. See the complete
@@ -147,8 +149,9 @@ Send `POST /api/chat` with a message or explicit fields. The response contains `
 To save, send `{ "session_id": "<returned UUID>", "expected_revision": 1, "confirm": true }`.
 Use the actual returned revision. Each further turn includes the session ID and revision.
 A stale revision gets HTTP 409. Edits with a confirmation action trigger a new review.
-`GET /api/drafts/{id}` returns a saved draft. Session and draft UUIDs are identifiers, not
-per-user access control. See [tool contracts](docs/tool-contracts.md).
+`GET /api/drafts/{id}` returns a saved draft. In public mode, API clients must retain the
+visitor cookie returned by the app; session and draft UUIDs alone do not grant access.
+Private mode uses the shared bearer token. See [tool contracts](docs/tool-contracts.md).
 
 ## Policies and data
 
@@ -192,14 +195,28 @@ access. Provider protocol tests use mocks and are distinct from a live local-mod
 The built package expects the policy and prompt files in this checkout; set `CLAIMS_ROOT`
 to this repository if running an installed wheel elsewhere.
 
-## Private deployment
+## Public and private deployment
 
-This is a single-user development application. For access beyond loopback, set
-`CLAIMS_APP_MODE=private`, a strong `CLAIMS_API_TOKEN`, and `CLAIMS_ALLOWED_HOSTS` (JSON array
-of hostnames), then use a TLS reverse proxy. The API requires `Authorization: Bearer TOKEN`.
-The browser accepts the token in memory; it does not persist it. The app disables cross-origin
-requests. A shared token does not provide employee authorization or isolation. Multi-user use
-requires identity integration, ownership checks, retention controls, and production hardening.
+To let anyone try the website without entering a token, set **`CLAIMS_APP_MODE=public`**
+and remove `CLAIMS_API_TOKEN` from Vercel. Keep `CLAIMS_DATABASE_URL` and your model settings,
+then redeploy the latest code. Do not use local `demo` app mode for a public website.
+The app assigns an anonymous HttpOnly visitor cookie and checks record ownership on session
+reads, chat updates, and draft exports. Each browser can access its own records, including
+after function restarts. This is browser access, not a verified employee identity.
+Clearing/expiring the cookie (30 days), changing browser/domain, or using incognito loses
+access to previous records; export drafts first. Existing unowned private/local records are
+not exposed in public mode. Sharing a browser shares its workspace.
+
+Public visitors use your hosted-model, database, and Vercel quotas. Free-tier limits still
+apply; use fictional data for public testing. There is no production rate limiter, employee
+login, or automatic retention cleanup.
+
+For restricted shared access, use `CLAIMS_APP_MODE=private` with a strong `CLAIMS_API_TOKEN`.
+The API requires `Authorization: Bearer TOKEN`; the browser accepts it in memory and asks
+again after reload. That shared token grants access to the application's records and does
+not identify individual employees. Outside Vercel, configure `CLAIMS_ALLOWED_HOSTS` (JSON
+hostnames) and a TLS reverse proxy. Both deployment modes disable cross-origin requests.
+See [Vercel deployment](docs/vercel-deployment.md) for exact settings.
 
 See [requirements](docs/requirements.md), [architecture](docs/architecture.md),
 [workflow](docs/agent-workflow.md), [evaluation plan](docs/evaluation-plan.md), and

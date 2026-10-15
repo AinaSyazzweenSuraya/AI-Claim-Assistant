@@ -915,6 +915,10 @@
         ><span id="step3">03 &middot; Review &amp; save</span>
       </div>
       <div id="error" role="alert"></div>
+      <p class="review-hint hidden" id="visitorNotice">
+        Your drafts are available in this browser. Export a copy before clearing site data.
+        Use fictional details when testing.
+      </p>
       <div class="credentials hidden" id="credentials">
         <input
           id="token"
@@ -1201,8 +1205,7 @@
       </div>
       <footer>
         <span
-          >MYR &middot; Policy-grounded calculations &middot; Local draft
-          storage</span
+          >MYR &middot; Policy-grounded calculations &middot; Saved claim drafts</span
         ><span>Allowance Assistant / v0.1</span>
       </footer>
     </main>
@@ -1851,6 +1854,7 @@
                 ? "Local AI"
                 : "AI enabled";
           $("credentials").classList.add("hidden");
+          $("visitorNotice").classList.toggle("hidden", health.app_mode !== "public");
           const id = localStorage.getItem("claimSession");
           if (id) {
             try {

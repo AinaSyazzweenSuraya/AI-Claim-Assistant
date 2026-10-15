@@ -24,6 +24,9 @@ with socket.socket() as listener:
 url = f"http://127.0.0.1:{port}"
 today = datetime.now(ZoneInfo("Asia/Kuala_Lumpur")).date().isoformat()
 errors = []
+app_mode = os.getenv("CLAIMS_UI_TEST_APP_MODE", "demo")
+if app_mode not in {"demo", "public"}:
+    raise SystemExit("CLAIMS_UI_TEST_APP_MODE must be demo or public")
 with tempfile.TemporaryDirectory(prefix="claims-ui-check-") as directory:
     sample_image = Path(directory) / "fictional-transaction.png"
     with Image.new("RGB", (640, 240), "white") as receipt:
@@ -36,7 +39,7 @@ with tempfile.TemporaryDirectory(prefix="claims-ui-check-") as directory:
         CLAIMS_RUNTIME_DIR=directory,
         CLAIMS_LLM_MODE="demo",
         CLAIMS_RECEIPT_IMAGE_BACKEND="vision",
-        CLAIMS_APP_MODE="demo",
+        CLAIMS_APP_MODE=app_mode,
         CLAIMS_API_TOKEN="",
         CLAIMS_DATABASE_URL="",
     )
@@ -70,6 +73,8 @@ with tempfile.TemporaryDirectory(prefix="claims-ui-check-") as directory:
             page.emulate_media(reduced_motion="reduce")
             page.on("pageerror", lambda error: errors.append(str(error)))
             page.goto(url, wait_until="networkidle")
+            assert page.locator("#credentials").is_hidden()
+            assert page.locator("#visitorNotice").is_visible() == (app_mode == "public")
             assert page.evaluate("document.characterSet") == "UTF-8"
             assert (
                 page.locator(".welcome").evaluate("element => getComputedStyle(element).whiteSpace")
@@ -225,6 +230,17 @@ with tempfile.TemporaryDirectory(prefix="claims-ui-check-") as directory:
             assert saved["calculation"]["amount"] == "30.00"
             assert "Café" in saved["claim"]["purpose"]
             assert saved["submitted"] is False
+            if app_mode == "public":
+                session_id = page.evaluate("localStorage.getItem('claimSession')")
+                other = browser.new_context()
+                other_page = other.new_page()
+                other_page.goto(url, wait_until="networkidle")
+                assert other_page.locator("#credentials").is_hidden()
+                assert other_page.locator("#employee").is_enabled()
+                assert other.request.get(url + "/api/sessions/" + session_id).status == 404
+                assert other.request.get(url + "/api/drafts/" + saved["id"]).status == 404
+                assert "claims_visitor" not in page.evaluate("document.cookie")
+                other.close()
             page.reload(wait_until="networkidle")
             page.wait_for_function(
                 "document.querySelector('#status').textContent === 'Draft saved'"
@@ -348,6 +364,8 @@ with tempfile.TemporaryDirectory(prefix="claims-ui-check-") as directory:
             json.dumps(
                 {
                     "browser_errors": errors,
+                    "app_mode": app_mode,
+                    "public_visitor_isolation": "passed" if app_mode == "public" else "not run",
                     "unicode": "correct",
                     "text_contrast": "AA checked for key controls and labels",
                     "field_labels": "readable",
