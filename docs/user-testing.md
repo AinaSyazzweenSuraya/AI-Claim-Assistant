@@ -34,6 +34,12 @@ connection failure, or saved draft disables uploads. Use **Retry connection** af
 connection errors, or **New claim** to add evidence after saving a draft. Uploading a file
 does not prove model extraction worked; review the proposed fields before confirming evidence.
 
+For receipt photos on Vercel with a text-only Groq model, select
+`CLAIMS_RECEIPT_IMAGE_BACKEND=browser` and follow [the browser OCR walkthrough](browser-ocr.md).
+It reads the image on your device and sends only scanned text for field extraction.
+Florence remains a separate local option. Model/provider failures and incorrect OCR must
+never be treated as confirmed evidence or a successful draft.
+
 These examples use 2026-10-13. If testing later, replace every claim and receipt date with
 the same recent date. Dates more than 30 days old are intentionally rejected.
 Enter `new` between scenarios to clear the current claim.

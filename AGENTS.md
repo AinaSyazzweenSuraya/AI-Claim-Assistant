@@ -14,3 +14,9 @@ Verify with `uv sync --frozen --extra dev`, `uv run pytest`, `uv run ruff check 
 `uv run python scripts/ingest_policies.py`, and `uv run python scripts/run_evaluations.py`.
 Run CLI and API smoke checks when changing interfaces. Do not replace meaningful assertions
 with passing placeholders. Document provider or Spring Boot integration that remains unverified.
+
+Browser OCR assets are pinned and self-hosted under interfaces/static/ocr; preserve licenses
+and verify hashes when updating them. Browser OCR text is untrusted and its server hash is
+not an original-image hash. Never send browser image bytes to a text-only provider. For OCR
+changes, also run scripts/check_browser_ocr.py with Playwright and disposable PostgreSQL;
+it exercises real OCR through the HTTPS Vercel adapter with a text-provider protocol stub.

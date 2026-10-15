@@ -21,6 +21,9 @@
 - [x] Verify Florence integration with 105 tests, 17 scenarios, browser preview/failure guards, native CPU imports, and default lightweight imports
 - [x] Expose safe hosted-model HTTP, timeout, connection, and response errors plus authenticated active-model diagnostics; verify 124 tests (4 PostgreSQL tests skipped) and 17 workflow scenarios, including image-request failure/recovery without automatic evidence confirmation
 - [x] Replace the receipt-picker label with a real button, explain disabled upload states, add connection retry, and verify native picker clicks, saved-draft/busy/auth restrictions, reconnection, and desktop/mobile flows in Chromium
+- [x] Add self-hosted browser Tesseract OCR for Vercel/text-only models, text-only requests, progress/retry, untrusted OCR-text hashing, and review/save guards; update README, setup, architecture, contracts, data/workflow, and evaluation docs
+- [x] Verify 139 tests including PostgreSQL, 17 scenarios, real PNG/JPEG OCR and failure cases through the HTTPS Vercel adapter, and an official Vercel Python 3.12 build with generated-bundle asset/auth/review/save/cold-start checks
+- [ ] Verify live Groq extraction and the user's Production Vercel browser-OCR deployment after setting the new variables
 - [ ] Verify actual Florence OCR accuracy on the user's computer; model download is blocked by the cloud network proxy
 - [ ] Verify live Vercel deployment after user configures the hosted database and access token
 - [ ] Live free local-model verification (requires accessible Ollama/model download)

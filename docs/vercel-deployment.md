@@ -50,12 +50,20 @@ To enable real AI, use an external HTTPS OpenAI-compatible model endpoint:
 | `CLAIMS_LLM_API_KEY` | Provider key entered securely in Vercel |
 
 Choose a provider/model that supports tool calls. Free-tier hosted services may be an option,
-subject to their limits; having a Vercel account does not supply a model key. Image extraction
-also requires a compatible vision model. Provider quality and credentials are not verified
+subject to their limits; having a Vercel account does not supply a model key. For receipt
+images, browser OCR works with a text model; direct server-image extraction requires a vision
+model. Provider quality and credentials are not verified
 by the local deployment tests. Model requests are capped at 10 seconds per round on Vercel,
 and the app has at most four tool rounds. A slow or unavailable provider reports a failure.
 
-Keep `CLAIMS_RECEIPT_IMAGE_BACKEND=vision` (the default) on Vercel. The optional Florence-2
+For free OCR on Vercel, set **`CLAIMS_RECEIPT_IMAGE_BACKEND=browser`**. The user's browser
+runs the included Tesseract.js worker and sends only scanned text to the API/text model.
+No hosted vision model or local Ollama/Florence server is needed. For Groq, use
+`CLAIMS_LLM_MODE=openai`, `CLAIMS_LLM_BASE_URL=https://api.groq.com/openai/v1`, an available
+text model such as `openai/gpt-oss-20b`, and your securely configured Groq key. Free-tier
+quotas apply; there is no OCR API fee. See [browser OCR setup](browser-ocr.md).
+
+`vision` remains an option for an available hosted vision model. The optional Florence-2
 backend runs locally with a text LLM; its PyTorch runtime and weights are not hosted by this
 function. Setting `florence` on Vercel fails startup with configuration guidance. See the
 [local Florence guide](florence-receipts.md) for the free computer-based image-scanning flow.
@@ -66,6 +74,8 @@ function. Setting `florence` on Vercel fails startup with configuration guidance
 2. Use branch `main` and the repository root as Root Directory.
 3. Select **FastAPI** if it is not detected. Keep the default install/build settings; Vercel
    reads `pyproject.toml` and `uv.lock`. Do not choose a static HTML framework.
+   OCR assets are committed and included in `vercel.json`; no npm/Node build or optional
+   Florence installation is needed for browser mode.
 4. Add the required variables above. No Vercel deployment token is needed when deploying
    through your own dashboard.
 5. Keep Vercel's system environment variables exposed: the app uses `VERCEL_URL`,
@@ -91,6 +101,10 @@ Follow [the user testing guide](user-testing.md), using current dates:
    Expect RM30.00. Missing evidence must prevent saving.
 5. With real AI configured, additionally try a natural-language request and verify that
    the model proposes the correct fields. A successful health check alone does not test AI.
+6. With `browser` OCR configured, upload a clear matching receipt image. Expect browser
+   progress, scanned text in the textarea, and proposed fields for separate confirmation.
+   The browser's `/api/chat` request must contain `receipt_ocr_text`, not `receipt_image`.
+   Check a blank/corrupt image and provider failure as described in [the OCR guide](browser-ocr.md).
 
 The included rules are fictional. The app creates drafts only; it does not approve or pay claims.
 
@@ -121,8 +135,21 @@ The included rules are fictional. The app creates drafts only; it does not appro
   in these messages. The authenticated `/api/health` response includes `llm_model`,
   `llm_mode`, `receipt_image_backend`, and `llm_timeout_seconds` so you can verify the active
   deployment's configuration. Health does not test provider access or extraction quality.
+- Browser OCR does not start: inspect `/assets/ocr/browser-ocr.js` and the versioned worker,
+  core, and `eng.traineddata.gz` requests in browser DevTools. They must return HTTP 200
+  from this deployment. Redeploy the latest code if assets are missing and use a browser
+  with workers/WebAssembly enabled. No API key belongs in browser OCR files.
+- Scanned text appears but extraction fails: OCR succeeded. Use the displayed model error
+  to diagnose access/quota/format/timeout, then click **Extract text** to retry. Keep a
+  text-only model on the `browser` path rather than switching it to direct vision.
 
 ## Local verification of the deployment adapter
+
+The real browser OCR check starts this Vercel adapter over HTTPS with a disposable PostgreSQL
+schema and a local text-provider protocol stub. See [verification commands](browser-ocr.md#verification).
+It checks native PNG/JPEG scanning, self-hosted assets, text-only API payloads, rate-limit
+recovery, separate confirmations, the RM30 meal cap, and PostgreSQL restoration. It does not
+deploy to Vercel or verify the user's live Groq key.
 
 The ordinary tests cover SQLite and cloud configuration. PostgreSQL integration tests run
 only when `CLAIMS_TEST_DATABASE_URL` is set; they use isolated temporary schemas.

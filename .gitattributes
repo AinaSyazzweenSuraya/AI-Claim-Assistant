@@ -1,0 +1,4 @@
+# Preserve pinned upstream asset bytes, including on Windows with core.autocrlf=true.
+src/claims_assistant/interfaces/static/ocr/6.0.1/** -text -whitespace
+src/claims_assistant/interfaces/static/ocr/6.0.1/*.wasm.js binary
+src/claims_assistant/interfaces/static/ocr/6.0.1/*.gz binary

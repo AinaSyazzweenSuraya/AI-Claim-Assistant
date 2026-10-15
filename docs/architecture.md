@@ -14,10 +14,17 @@ flowchart LR
   P --> V
 ```
 
+Browser image processing: `browser` OCR uses self-hosted Tesseract.js workers, WebAssembly,
+and English data on the user's device. Only untrusted `receipt_ocr_text` reaches the API;
+the existing text model proposes fields. Static files are included in the wheel and Vercel
+function, with no Node build or native OCR dependencies. Browser OCR runs outside the
+function timeout. Its server-side evidence hash covers received OCR text, not original
+image bytes. See [browser OCR](browser-ocr.md).
+
 Optional local image processing: the Florence OCR backend reads PNG/JPEG bytes and passes
 untrusted text to the same text-model receipt extractor. It uses native Transformers with
 the documented Florence-2 base checkpoint and cached weights. The default image backend
-continues to send images to a compatible vision model. OCR/model extraction only proposes
+(`vision`) sends images to a compatible vision model. OCR/model extraction only proposes
 fields; explicit evidence review, policy retrieval, validation, calculation, and saving are
 controlled by the existing runner. See [Florence setup](florence-receipts.md).
 

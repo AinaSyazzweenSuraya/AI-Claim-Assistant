@@ -26,3 +26,15 @@ receipt photos and transaction screenshots; record model checkpoint, package ver
 CPU/GPU, elapsed time, exact merchant/payee/date/total/currency/reference accuracy, and missing
 or invented values. Include blur, cropped totals, multiple dates/currencies, and printed
 instruction attacks. Every OCR-extracted record must require explicit user confirmation.
+
+Browser OCR: run `scripts/check_browser_ocr.py` with Playwright/Chromium, OpenSSL, DejaVu
+Sans Mono, and disposable PostgreSQL. It uses real self-hosted Tesseract.js on fictional
+PNG/JPEG images and the HTTPS Vercel adapter; a local OpenAI-compatible stub checks that
+the provider receives text only. Check exact merchant/date/amount/currency/reference,
+no external browser requests or image API payloads, blank/corrupt images, provider rate-limit
+retry from retained OCR text, pending-image save guards, separate confirmations, RM30 cap,
+PostgreSQL restoration, and persisted text-hash metadata. Unit tests additionally cover
+source exclusivity, bounded text, asset hashes, duplicates, and server-image rejection.
+These checks prove integration on generated clear English receipts. Live Groq output,
+real staff-image quality, free-tier capacity, and the user's actual Vercel deployment remain
+separate acceptance checks. See [the browser OCR guide](browser-ocr.md).

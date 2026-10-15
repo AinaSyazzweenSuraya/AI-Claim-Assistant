@@ -17,7 +17,8 @@ def create_vercel_app(root: Path | None = None):
     if settings.receipt_image_backend == "florence":
         raise ValueError(
             "Local Florence OCR runs on your computer, not in this Vercel function. "
-            "Use CLAIMS_RECEIPT_IMAGE_BACKEND=vision with a hosted vision model on Vercel."
+            "Use CLAIMS_RECEIPT_IMAGE_BACKEND=browser with a text model, "
+            "or vision with a hosted vision model on Vercel."
         )
     if settings.llm_mode == "ollama" and urlsplit(settings.llm_base_url).hostname in {
         "localhost",

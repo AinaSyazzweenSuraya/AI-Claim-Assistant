@@ -5,6 +5,7 @@ from uuid import UUID
 
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
@@ -24,6 +25,7 @@ class ChatRequest(BaseModel):
     fields: dict | None = None
     receipt_text: str | None = Field(default=None, max_length=20000)
     receipt_image: str | None = Field(default=None, max_length=7_000_000)
+    receipt_ocr_text: str | None = Field(default=None, min_length=1, max_length=20000)
     receipt_fields: dict | None = None
     confirm_receipt: bool = False
     confirm: bool = False
@@ -34,6 +36,11 @@ def create_app(settings: Settings | None = None, *, public_https: bool = False) 
     assistant = Assistant(settings)
     app = FastAPI(title="Allowance Assistant", version="0.1.0")
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts)
+    app.mount(
+        "/assets/ocr",
+        StaticFiles(directory=Path(__file__).with_name("static") / "ocr"),
+        name="browser-ocr",
+    )
 
     def authorize(authorization: Annotated[str | None, Header()] = None) -> None:
         if settings.api_token and not hmac.compare_digest(
@@ -60,7 +67,11 @@ def create_app(settings: Settings | None = None, *, public_https: bool = False) 
         if origin and origin != str(public_url).rstrip("/"):
             return JSONResponse({"detail": "Cross-origin requests are disabled"}, status_code=403)
         response = await call_next(request)
-        response.headers["Cache-Control"] = "no-store"
+        response.headers["Cache-Control"] = (
+            "public, max-age=86400"
+            if request.url.path.startswith("/assets/ocr/6.0.1/")
+            else "no-store"
+        )
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "no-referrer"
         return response

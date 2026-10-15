@@ -580,6 +580,7 @@
             />
           </div>
           <p id="uploadHint" class="muted" role="status">Connecting to the assistant...</p>
+          <p id="ocrProgress" class="muted hidden" role="status" aria-live="polite"></p>
           <button id="retryConnection" class="secondary hidden" type="button">Retry connection</button>
           <figure id="receiptPreview" class="hidden">
             <img id="receiptPreviewImage" alt="Your uploaded receipt or transaction screenshot" />
@@ -654,6 +655,7 @@
         ><span>Allowance Assistant / v0.1</span>
       </footer>
     </main>
+    <script src="/assets/ocr/browser-ocr.js?v=1"></script>
     <script>
       const $ = (id) => document.getElementById(id);
       let state = null;
@@ -664,6 +666,8 @@
       let pendingReceipt = false;
       let pendingImage = false;
       let receiptPreviewUrl = null;
+      let receiptImageBackend = "vision";
+      let browserOcrSource = false;
 
       const fieldLabels = {
         employee_id: "Employee ID",
@@ -957,7 +961,7 @@
         const receipt = state.claim.receipt;
         $("receiptReview").classList.toggle("hidden", !receipt);
         $("receiptSource").textContent = receipt
-          ? ["model_image", "florence_ocr_text"].includes(receipt.extraction_method)
+          ? ["model_image", "florence_ocr_text", "browser_ocr_text"].includes(receipt.extraction_method)
             ? "Scanned from image. Check every field before confirming."
             : "Extracted from text. Check every field before confirming."
           : "";
@@ -1027,14 +1031,16 @@
             data.tools.some((item) => item.tool === name && item.result.ok);
           const reset = options.message === "new" && state.status !== "saved";
           if (
-            (options.receipt_text || options.receipt_image) &&
+            (options.receipt_text || options.receipt_image || options.receipt_ocr_text) &&
             succeeded("extract_receipt")
           )
             pendingReceipt = false;
-          if (options.receipt_image && succeeded("extract_receipt")) pendingImage = false;
+          if ((options.receipt_image || options.receipt_ocr_text) && succeeded("extract_receipt")) pendingImage = false;
           if (reset) {
             pendingReceipt = false;
             pendingImage = false;
+            browserOcrSource = false;
+            $("ocrProgress").classList.add("hidden");
             $("conversation").replaceChildren();
             $("receiptText").value = "";
             $("receiptFile").value = "";
@@ -1101,7 +1107,9 @@
       });
       $("extract").addEventListener("click", () =>
         turn(
-          { receipt_text: $("receiptText").value },
+          browserOcrSource
+            ? { receipt_ocr_text: $("receiptText").value }
+            : { receipt_text: $("receiptText").value },
           "Extract my receipt text.",
         ),
       );
@@ -1109,11 +1117,14 @@
       $("receiptFile").addEventListener("change", async (event) => {
         const file = event.target.files[0];
         if (!file) return;
+        event.target.value = ""; // Allow choosing the same file again after a failed scan.
         if (file.size > 5 * 1024 * 1024) {
           showError("Maximum file size: 5 MiB.");
           return;
         }
         if (file.name.toLowerCase().endsWith(".txt")) {
+          browserOcrSource = false;
+          $("ocrProgress").classList.add("hidden");
           pendingImage = false;
           previewReceipt();
           $("receiptText").value = await file.text();
@@ -1124,6 +1135,34 @@
         previewReceipt(file);
         pendingImage = true;
         setBusy(true);
+        if (receiptImageBackend === "browser") {
+          browserOcrSource = true;
+          $("receiptText").value = "";
+          pendingReceipt = false;
+          showError("");
+          $("ocrProgress").classList.remove("hidden");
+          try {
+            if (!window.ClaimsBrowserOCR) throw new Error("Browser OCR failed to load. Refresh this page and retry.");
+            const text = await window.ClaimsBrowserOCR.scan(file, (message) => {
+              $("ocrProgress").textContent = message;
+            });
+            $("receiptText").value = text;
+            pendingReceipt = true;
+            $("ocrProgress").textContent = "Image read in your browser. Asking the text model for receipt fields...";
+            setBusy(false);
+            await turn({ receipt_ocr_text: text }, "Extract my scanned receipt text.");
+            $("ocrProgress").textContent = pendingImage
+              ? "Field extraction failed. Review the scanned text, then click Extract text to retry, or clear the image preview."
+              : "Scan complete. Check every proposed receipt field against the image before confirming.";
+          } catch (error) {
+            $("ocrProgress").textContent = "Scan failed. Retry with a clear receipt or clear the image preview.";
+            showError(error.message);
+          } finally {
+            setBusy(false);
+          }
+          return;
+        }
+        browserOcrSource = false;
         const reader = new FileReader();
         reader.onload = () => {
           setBusy(false);
@@ -1142,6 +1181,8 @@
         previewReceipt();
         $("receiptFile").value = "";
         pendingImage = false;
+        browserOcrSource = false;
+        $("ocrProgress").classList.add("hidden");
         updateControls();
       });
       $("correctReceipt").addEventListener("click", () => {
@@ -1202,8 +1243,11 @@
         setBusy(true);
         try {
           const health = await api("/api/health");
+          receiptImageBackend = health.receipt_image_backend;
           showError("");
-          $("receiptHint").textContent = health.llm_mode === "demo"
+          $("receiptHint").textContent = receiptImageBackend === "browser"
+            ? "Images are read in your browser. Only scanned text is sent for field extraction. Review every field. English OCR; clear PNG/JPEG up to 5 MiB."
+            : health.llm_mode === "demo"
             ? "Paste labeled receipt text in demo mode. Image scanning needs an enabled model."
             : health.receipt_image_backend === "florence"
               ? "Receipt and transaction images are scanned locally. PNG/JPEG up to 5 MiB."

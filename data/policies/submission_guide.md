@@ -8,7 +8,7 @@ Mileage also needs distance_km and route. Meal and parking need amount and confi
 Lodging needs amount, nights, and confirmed receipt. Only MYR is supported.
 
 ## Receipt review
-Paste receipt text or provide image bytes through the optional vision extraction endpoint.
+Paste receipt text, read an image through browser OCR, or use the optional vision/local OCR path.
 Verify merchant, date, total, and currency, then confirm the evidence. Extraction never
 proves authenticity. Replacing evidence clears its confirmation.
 

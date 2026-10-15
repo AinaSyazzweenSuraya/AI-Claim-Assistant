@@ -20,3 +20,11 @@ Changing claim or evidence requires review again. Saved drafts are immutable in 
 The default workflow must run without credentials or network model calls. Ollama provides
 optional local AI with no per-request payment; real provider runs are evaluated separately.
 Model or policy failures must be visible and must not save a draft.
+
+Browser image OCR must work on Vercel with a text-only model: the browser reads one PNG/JPEG,
+downloads OCR assets from this app, and sends only bounded OCR text to the API. No OCR API
+fee, vision model, local computer server, or Python OCR runtime is required for that path.
+Provider/hosting free-tier limits still apply. Show scan progress, preserve scanned text
+for model retries, and block saving after a failed replacement until retried or canceled.
+Require separate review/confirmation of proposed fields. Support English printed receipts;
+state that OCR text hashes are not verified image hashes or authenticity evidence.

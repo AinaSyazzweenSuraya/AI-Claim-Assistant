@@ -5,12 +5,13 @@ Validation issues are successful tool execution with `data.valid=false`; transpo
 failures use `ok=false`. Common codes: INVALID_INPUT, UNKNOWN_TOOL, STORAGE_ERROR,
 MODEL_UNAVAILABLE, VISION_UNAVAILABLE, CONFIRMATION_REQUIRED, REVIEW_CHANGED, DUPLICATE_RECEIPT.
 Local scanning also returns OCR_UNAVAILABLE and TEXT_MODEL_REQUIRED when prerequisites fail.
+Browser mode returns BROWSER_OCR_REQUIRED for direct server-image requests.
 
 | Tool | Input | Successful output | Failure behavior |
 | --- | --- | --- | --- |
 | search_policy | query, expense date from state | section text and citation metadata | stale/missing index fails; no match returns [] |
 | update_claim | partial Claim fields, excluding receipt | validated merged Claim | unknown fields/ranges reject update |
-| extract_receipt | exactly one text or image_base64 | proposed Receipt, confirmed=false | ambiguous fields stay null; unsupported vision fails |
+| extract_receipt | exactly one text, image_base64, or ocr_text | proposed Receipt, confirmed=false | empty/oversized text or multiple sources fail; ambiguous fields stay null |
 | validate_claim | current Claim, rule store, current date | valid, missing, errors, policy ID/version | version problems appear as validation errors |
 | calculate_claim | current valid Claim | amount, requested amount, cap, formula, citation | invalid claim never gets an amount |
 | save_draft | ready state and server-side explicit confirmation | proposed local draft write | no confirmation, changed calculation, duplicate receipt block write |
@@ -25,9 +26,16 @@ for local OCR. Empty/truncated scans fail instead of returning partial usable ev
 Extraction metadata is `florence_ocr_text` for the local path. Duplicate hashes cover the
 original image bytes, not the OCR text. No raw OCR text or image is automatically persisted.
 
+`CLAIMS_RECEIPT_IMAGE_BACKEND=browser` performs Tesseract OCR on the client. `ocr_text` is
+bounded to 20,000 nonblank characters and passed to the same text model (or limited demo
+parser). Metadata is `browser_ocr_text`; the server hashes received text, not the original
+image. Clients can alter that text, so the metadata is not trusted provenance. Direct images
+are rejected with BROWSER_OCR_REQUIRED. No original image bytes are sent through this path.
+
 API: POST /api/sessions, GET /api/sessions/{UUID}, POST /api/chat,
 GET /api/drafts/{UUID}, GET /api/health. Chat supports message, fields, receipt_text,
-receipt_image (base64 PNG/JPEG, ≤5 MiB), receipt_fields (visible corrections), confirm_receipt,
+receipt_image (base64 PNG/JPEG, ≤5 MiB), receipt_ocr_text (browser OCR text),
+receipt_fields (visible corrections), confirm_receipt,
 confirm, session_id, expected_revision. Receipt text is limited to 20,000 characters.
 Confirmation requires a prior session and displayed revision. All API endpoints require the
 configured bearer token when present. Private mode requires a token. HTTP 401=authentication,

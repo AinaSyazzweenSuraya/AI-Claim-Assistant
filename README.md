@@ -27,9 +27,33 @@ CLAIMS_LLM_MODEL=llama3.2:3b
 
 No API key is needed for local Ollama. You supply the computer, RAM, electricity, and model
 download; check the model license for your intended use. Text-only llama3.2:3b cannot read
-receipt images. Use pasted receipt text, or select a compatible vision model separately
-(e.g. a locally installed Ollama vision model supporting the OpenAI-compatible image format).
-Image extraction is optional and must be evaluated on your receipts before use.
+images directly, but works with the browser OCR or local Florence paths below.
+
+### Receipt images on Vercel: browser OCR + a text model
+
+Set `CLAIMS_RECEIPT_IMAGE_BACKEND=browser`. The website uses **Tesseract.js in the user's
+browser** to read PNG/JPEG receipts, then sends **only OCR text** to the configured text
+model for proposed receipt fields. You review the fields; Python applies the policy and
+calculates the draft. No OCR API key, vision model, local computer server, or Florence
+installation is needed for this path. Pinned OCR worker, WebAssembly, and English language
+files are included in this repository and served from the same app.
+
+For your Groq text model on Vercel, set these non-secret variables:
+
+```dotenv
+CLAIMS_APP_MODE=private
+CLAIMS_RECEIPT_IMAGE_BACKEND=browser
+CLAIMS_LLM_MODE=openai
+CLAIMS_LLM_BASE_URL=https://api.groq.com/openai/v1
+CLAIMS_LLM_MODEL=openai/gpt-oss-20b
+```
+
+Keep your actual `CLAIMS_API_TOKEN`, `CLAIMS_DATABASE_URL`, and `CLAIMS_LLM_API_KEY` securely
+configured in Vercel. Use a model available to your key, then redeploy after changing variables.
+Browser OCR has no inference API fee; Groq, database, and Vercel free-tier quotas still apply.
+It is English OCR for clear printed receipts, not guaranteed document understanding.
+The first scan downloads several MB of OCR assets. See the complete
+[browser OCR setup and test guide](docs/browser-ocr.md) and [Vercel guide](docs/vercel-deployment.md).
 
 For receipt photos and transaction screenshots with a text-only model, use the optional
 [free local Florence-2 OCR setup](docs/florence-receipts.md). It reads the image first, then
@@ -98,6 +122,8 @@ Review extracted merchant, date, total, and currency before confirming evidence.
 supports labeled text only (`Merchant:`, `Date: YYYY-MM-DD`, `Total: RM25.00`, optional
 `Currency: MYR` and `Receipt: ID`). Unknown or ambiguous values remain missing.
 The browser offers receipt corrections and JSON draft export. Images are not written to disk.
+In browser OCR mode, the image stays in the browser; the server hashes the received OCR text
+for duplicate detection. This is not a verified hash of the original image or proof of authenticity.
 
 ## API example
 
@@ -149,6 +175,11 @@ uv run python scripts/ingest_policies.py
 uv run python scripts/run_evaluations.py
 uv build
 ```
+
+The browser checks exercise the actual file picker and OCR engine. For the HTTPS Vercel
+adapter with a disposable PostgreSQL database, see [browser OCR verification](docs/browser-ocr.md#verification).
+That test uses real Tesseract PNG/JPEG recognition and a local protocol stub for the hosted
+text model; it does not verify your live Groq credentials or your deployed Vercel project.
 
 Evaluations use a fixed date and a temporary database, never your real drafts. Results are
 written under `evaluations/results`. Tests cover calculations, deadlines, evidence,

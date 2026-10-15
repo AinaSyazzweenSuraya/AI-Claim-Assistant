@@ -132,11 +132,17 @@ model, so a text-only model can continue handling chat and receipt-field extract
 
 ## Vercel
 
-Keep `CLAIMS_RECEIPT_IMAGE_BACKEND=vision` on Vercel. The current function does not host local
+For free receipt OCR through the Vercel website, use the separate
+[browser Tesseract OCR path](browser-ocr.md): `CLAIMS_RECEIPT_IMAGE_BACKEND=browser` with
+an available hosted text model. It does not require Florence or your computer to run a server.
+
+Alternatively use `CLAIMS_RECEIPT_IMAGE_BACKEND=vision` with a hosted vision model.
+The current function does not host local
 Florence; selecting `florence` there fails startup with a clear configuration message.
 The default Vercel install does not install the optional PyTorch/Transformers packages.
-For images on Vercel, its selected hosted model must support vision and the assistant's
-tool/JSON requirements. A text-only model cannot read an image through that path.
+For direct images in `vision` mode, its selected hosted model must support vision and the
+assistant's tool/JSON requirements. A text-only model cannot read an image through that path;
+use `browser` OCR to send scanned text instead.
 
 Using the Vercel website with local Florence would require an authenticated external OCR
 service and HTTPS connectivity to the computer/server running it. That remote Florence

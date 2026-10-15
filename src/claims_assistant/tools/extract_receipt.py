@@ -32,11 +32,18 @@ def text_fields(text: str) -> dict:
 
 
 def extract_receipt(
-    settings: Settings, text: str | None = None, image_base64: str | None = None
+    settings: Settings,
+    text: str | None = None,
+    image_base64: str | None = None,
+    ocr_text: str | None = None,
 ) -> ToolResult:
-    if bool(text) == bool(image_base64):
-        raise ValueError("Provide exactly one of text or image_base64")
-    if text:
+    if sum(value is not None for value in [text, image_base64, ocr_text]) != 1:
+        raise ValueError("Provide exactly one of text, image_base64, or ocr_text")
+    if ocr_text is not None:
+        text = ocr_text
+    if text is not None:
+        if not text.strip():
+            raise ValueError("Receipt text must not be empty")
         if len(text) > 20000:
             raise ValueError("Receipt text exceeds 20,000 characters")
         raw = text.encode()
@@ -46,7 +53,14 @@ def extract_receipt(
             else ModelClient(settings).receipt(load(settings.root, "receipt_extraction.md"), text)
         )
         method = "text" if settings.llm_mode == "demo" else "model_text"
+        if ocr_text is not None:
+            method = "browser_ocr_text"
     else:
+        if settings.receipt_image_backend == "browser":
+            return ToolResult.error(
+                "BROWSER_OCR_REQUIRED",
+                "Use the website to read this image in your browser, then send its OCR text",
+            )
         if settings.llm_mode == "demo":
             if settings.receipt_image_backend == "florence":
                 return ToolResult.error(

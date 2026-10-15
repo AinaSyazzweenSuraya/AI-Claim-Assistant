@@ -143,6 +143,7 @@ class Assistant:
         fields: dict | None = None,
         receipt_text: str | None = None,
         receipt_image: str | None = None,
+        receipt_ocr_text: str | None = None,
         receipt_fields: dict | None = None,
         confirm_receipt: bool = False,
         confirm: bool = False,
@@ -187,12 +188,17 @@ class Assistant:
             state.citations, state.history = [], []
 
         # Extracting/replacing evidence and confirming it must be separate actions.
-        if confirm_receipt and (receipt_text or receipt_image or receipt_fields):
+        if confirm_receipt and (
+            receipt_text or receipt_image or receipt_ocr_text or receipt_fields
+        ):
             error = "Review the extracted or corrected receipt before confirming it."
+        if sum(value is not None for value in [receipt_text, receipt_image, receipt_ocr_text]) > 1:
+            error = "Provide only one receipt source per request."
         try:
             patch = fields
             if (
                 patch is None
+                and not error
                 and message
                 and not policy_question
                 and message.strip().casefold() not in {"confirm", "new"}
@@ -210,9 +216,20 @@ class Assistant:
                 result = invoke("update_claim", patch)
                 if not result.ok:
                     error = result.message
-            if not error and (receipt_text or receipt_image):
+            if not error and any(
+                value is not None for value in [receipt_text, receipt_image, receipt_ocr_text]
+            ):
                 result = invoke(
-                    "extract_receipt", {"text": receipt_text, "image_base64": receipt_image}
+                    "extract_receipt",
+                    {
+                        key: value
+                        for key, value in {
+                            "text": receipt_text,
+                            "image_base64": receipt_image,
+                            "ocr_text": receipt_ocr_text,
+                        }.items()
+                        if value is not None
+                    },
                 )
                 if result.ok:
                     state.claim.receipt = Receipt.model_validate(result.data)
